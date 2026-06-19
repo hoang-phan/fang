@@ -1,0 +1,122 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* ─── THEME ──────────────────────────────────────────────────────────────────
+   Change the game's look here. All colors flow from these variables.
+   bg-*      → background layers (darkest → lightest)
+   border-*  → border/divider lines
+   text-*    → text hierarchy (muted → bright)
+   accent-*  → interactive / highlighted elements
+   player-*  → player combatant card
+   enemy-*   → opponent combatant card
+────────────────────────────────────────────────────────────────────────────── */
+:root {
+  --bg-base:        #1a0a12;   /* page background */
+  --bg-surface:     #26101a;   /* cards, panels */
+  --bg-raised:      #321520;   /* elevated elements, headers */
+  --bg-hover:       #3e1a28;   /* hover states */
+  --bg-muted:       #200d16;   /* subtle background tints */
+
+  --border-strong:  #c0406a;   /* prominent borders */
+  --border-mid:     #7a2848;   /* standard borders */
+  --border-subtle:  #4a1830;   /* dividers */
+
+  --text-bright:    #ffe0ee;   /* headings, values */
+  --text-normal:    #f0b8d0;   /* body text */
+  --text-muted:     #c07898;   /* secondary / labels */
+  --text-faint:     #7a4060;   /* disabled / placeholder */
+
+  --player-bg:      #0e1a26;   /* player card bg */
+  --player-border:  #3d8abf;   /* player card border */
+  --enemy-bg:       #26101a;   /* enemy card bg */
+  --enemy-border:   #c0406a;   /* enemy card border */
+
+  --bar-mp:         #ec4899;   /* MP progress bar fill */
+  --overlay-dim:    rgba(10,2,8,0.75);   /* modal backdrop */
+  --overlay-dark:   #ffe0ee;  /* cinematic / full-screen backdrop */
+
+  --accent:         #e8408a;   /* primary accent — buttons, headings, highlights */
+  --accent-hover:   #ff5fa0;   /* accent hover state */
+  --accent-text:    #ffffff;   /* text on accent backgrounds */
+  --accent-subtle:  #2a1020;   /* tinted accent background */
+  --accent-border:  #a03060;   /* accent-tinted border */
+  --accent-muted:   #f472b6;   /* softer accent for labels, badges */
+
+  --reward-loot:        #d97706;   /* loot reward border */
+  --reward-loot-bg:     #1c1306;   /* loot reward card bg */
+  --reward-loot-hover:  #261a08;   /* loot reward hover */
+}
+
+/* ─── TAILWIND THEME BRIDGE ─────────────────────────────────────────────────
+   Maps CSS vars to Tailwind utility classes so components can use
+   className="bg-theme-base text-theme-bright border-theme-mid" etc.
+────────────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-theme-base:         var(--bg-base);
+  --color-theme-surface:      var(--bg-surface);
+  --color-theme-raised:       var(--bg-raised);
+  --color-theme-hover:        var(--bg-hover);
+  --color-theme-muted:        var(--bg-muted);
+
+  --color-border-strong:      var(--border-strong);
+  --color-border-mid:         var(--border-mid);
+  --color-border-subtle:      var(--border-subtle);
+
+  --color-text-bright:        var(--text-bright);
+  --color-text-normal:        var(--text-normal);
+  --color-text-muted:         var(--text-muted);
+  --color-text-faint:         var(--text-faint);
+
+  --color-player-bg:          var(--player-bg);
+  --color-player-border:      var(--player-border);
+  --color-enemy-bg:           var(--enemy-bg);
+  --color-enemy-border:       var(--enemy-border);
+
+  --color-bar-mp:             var(--bar-mp);
+
+  --color-accent:             var(--accent);
+  --color-accent-hover:       var(--accent-hover);
+  --color-accent-text:        var(--accent-text);
+  --color-accent-subtle:      var(--accent-subtle);
+  --color-accent-border:      var(--accent-border);
+  --color-accent-muted:       var(--accent-muted);
+
+  --color-reward-loot:        var(--reward-loot);
+  --color-reward-loot-bg:     var(--reward-loot-bg);
+  --color-reward-loot-hover:  var(--reward-loot-hover);
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-base);
+  color: var(--text-normal);
+  min-height: 100vh;
+  font-family: 'Courier New', monospace;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.font-pixel {
+  font-family: 'Press Start 2P', monospace;
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.damage-flash {
+  animation: flash 0.4s ease-in-out;
+}
+
+@keyframes float-up {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-40px); }
+}
+
+.damage-number {
+  animation: float-up 0.8s ease-out forwards;
+}
