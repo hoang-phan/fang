@@ -2,42 +2,6 @@ import type { ShopItem } from '../types';
 
 export const SHOP_ITEMS: ShopItem[] = [
   {
-    id: 'potion',
-    name: 'Potion',
-    description: 'Restores 30 HP.',
-    type: 'hp_restore',
-    cost: 10,
-    value: 30,
-    icon: '🧪',
-  },
-  {
-    id: 'max_potion',
-    name: 'Max Potion',
-    description: 'Fully restores HP.',
-    type: 'hp_restore',
-    cost: 30,
-    value: 9999,
-    icon: '💊',
-  },
-  {
-    id: 'ether',
-    name: 'Ether',
-    description: 'Restores 25 MP.',
-    type: 'mp_restore',
-    cost: 15,
-    value: 25,
-    icon: '🔵',
-  },
-  {
-    id: 'max_ether',
-    name: 'Max Ether',
-    description: 'Fully restores MP.',
-    type: 'mp_restore',
-    cost: 35,
-    value: 9999,
-    icon: '🌀',
-  },
-  {
     id: 'hp_up',
     name: 'HP Up',
     description: '+20 Max HP permanently.',

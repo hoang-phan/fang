@@ -206,6 +206,7 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
 
       const newLogs: BattleLogEntry[] = [];
       let newPlayerHp = state.player.hp;
+      let newPlayerMp = state.player.mp;
       let newOpponentHp = state.opponent.hp;
       const remainingEffects: ActiveEffect[] = [];
       let nextPlayerStunned = false;
@@ -239,6 +240,21 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         }
       }
 
+      if (state.hpRegenPerTurn > 0 && newPlayerHp > 0) {
+        const healed = Math.min(state.hpRegenPerTurn, state.player.maxHp - newPlayerHp);
+        if (healed > 0) {
+          newPlayerHp += healed;
+          newLogs.push(mkLog(`You regenerated ${healed} HP.`, 'system'));
+        }
+      }
+      if (state.mpRegenPerTurn > 0) {
+        const restored = Math.min(state.mpRegenPerTurn, state.player.maxMp - newPlayerMp);
+        if (restored > 0) {
+          newPlayerMp += restored;
+          newLogs.push(mkLog(`You recovered ${restored} MP.`, 'system'));
+        }
+      }
+
       const isVictory = checkVictory(newOpponentHp);
       const isDefeat = !isVictory && checkDefeat(newPlayerHp);
 
@@ -246,7 +262,7 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         ...state,
         phase: isVictory ? 'victory' : isDefeat ? 'defeat' : 'player_turn',
         turn: state.turn + 1,
-        player: { ...state.player, hp: newPlayerHp },
+        player: { ...state.player, hp: newPlayerHp, mp: newPlayerMp },
         opponent: { ...state.opponent, hp: newOpponentHp },
         log: [...state.log, ...newLogs],
         lastPlayerDamage: null,

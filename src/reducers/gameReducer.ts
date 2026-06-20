@@ -1,7 +1,8 @@
-import type { GameState, GameScreen, PlayerStats, RewardOption, BattleState, Move, ElementType, OpponentDef } from '../types';
+import type { GameState, GameScreen, PlayerStats, RewardOption, BattleState, Move, ElementType, OpponentDef, ItemSlot } from '../types';
 import { SHOP_ITEMS } from '../data/shopItems';
 import { generateRewards } from '../utils/rewards';
 import { applyXp, calcPlayerXpGain, calcOpponentXpGain, getOpponentProgress, getScaledOpponent } from '../utils/xp';
+import { generateShopEquipment, computeEquipmentStats } from '../utils/equipment';
 
 export type StatPointTarget = ElementType | 'baseDamage' | 'baseDefense';
 
@@ -16,7 +17,10 @@ export type GameAction =
   | { type: 'BUY_SHOP_ITEM'; itemId: string }
   | { type: 'EQUIP_MOVE'; move: Move; slot: 0 | 1 | 2 | 3 }
   | { type: 'UNEQUIP_MOVE'; slot: 0 | 1 | 2 | 3 }
-  | { type: 'SPEND_STAT_POINT'; target: StatPointTarget };
+  | { type: 'SPEND_STAT_POINT'; target: StatPointTarget }
+  | { type: 'BUY_EQUIPMENT'; itemId: string }
+  | { type: 'EQUIP_ITEM'; itemId: string; slot: ItemSlot }
+  | { type: 'UNEQUIP_ITEM'; slot: ItemSlot };
 
 export const DEFAULT_PLAYER: PlayerStats = {
   name: 'Hero',
@@ -34,6 +38,8 @@ export const DEFAULT_PLAYER: PlayerStats = {
   stats: {},
   baseDamage: 0,
   baseDefense: 0,
+  inventory: [],
+  equipped: {},
 };
 
 export const DEFAULT_GAME_STATE: GameState = {
@@ -45,6 +51,7 @@ export const DEFAULT_GAME_STATE: GameState = {
   activeBattle: null,
   opponentProgress: {},
   lastDefeatedOpponent: null,
+  shopEquipment: [],
 };
 
 function restorePlayer(player: PlayerStats): PlayerStats {
@@ -61,7 +68,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const { opponentDef } = action;
       const oppProgress = getOpponentProgress(state.opponentProgress, opponentDef.id, opponentDef.level);
       const scaledOpponent = getScaledOpponent(opponentDef, oppProgress);
-      const freshPlayer = restorePlayer(state.player);
+
+      const eqStats = computeEquipmentStats(state.player.equipped);
+      const mergedStats = { ...state.player.stats };
+      for (const [el, bonus] of Object.entries(eqStats.elementDamage) as [ElementType, number][]) {
+        mergedStats[el] = (mergedStats[el] ?? 0) + bonus;
+      }
+      const equippedPlayer: PlayerStats = {
+        ...state.player,
+        maxHp: state.player.maxHp + eqStats.hpBoost,
+        maxMp: state.player.maxMp + eqStats.mpBoost,
+        baseDamage: state.player.baseDamage + eqStats.bonusDamage,
+        baseDefense: state.player.baseDefense + eqStats.bonusDefense,
+        stats: mergedStats,
+      };
+      const freshPlayer = restorePlayer(equippedPlayer);
+
       const battleState: BattleState = {
         phase: 'player_turn',
         player: freshPlayer,
@@ -72,11 +94,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         lastOpponentDamage: null,
         opponentMovesUsed: [],
         activeEffects: [],
+        playerStunned: false,
+        opponentStunned: false,
+        hpRegenPerTurn: eqStats.hpRegen,
+        mpRegenPerTurn: eqStats.mpRegen,
       };
       return {
         ...state,
         screen: 'battle' as GameScreen,
-        player: freshPlayer,
         activeBattle: battleState,
       };
     }
@@ -158,7 +183,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       let player = { ...state.player };
 
       if (reward.type === 'cinematic') {
-        return { ...state, pendingRewards: [], screen: 'shop' };
+        return { ...state, pendingRewards: [], screen: 'shop', shopEquipment: generateShopEquipment() };
       }
 
       if (reward.type === 'loot' && reward.gold != null) {
@@ -188,11 +213,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         player,
         pendingRewards: state.pendingRewards.filter(r => r !== reward),
         screen: 'shop',
+        shopEquipment: generateShopEquipment(),
       };
     }
 
     case 'GO_TO_SHOP': {
-      return { ...state, screen: 'shop', pendingRewards: [] };
+      return { ...state, screen: 'shop', pendingRewards: [], shopEquipment: generateShopEquipment() };
     }
 
     case 'GO_TO_OPPONENT_SELECT': {
@@ -281,6 +307,59 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...state.player,
           statPoints: state.player.statPoints - 1,
           stats: { ...(state.player.stats ?? {}), [target]: current + 1 },
+        },
+      };
+    }
+
+    case 'BUY_EQUIPMENT': {
+      const item = state.shopEquipment.find(i => i.id === action.itemId);
+      if (!item) return state;
+      const cost = (() => {
+        const costs: Record<string, number> = { rude: 15, normal: 40, rare: 90, legendary: 220 };
+        return costs[item.quality] ?? 40;
+      })();
+      if (state.player.gold < cost) return state;
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          gold: state.player.gold - cost,
+          inventory: [...state.player.inventory, item],
+        },
+        shopEquipment: state.shopEquipment.filter(i => i.id !== action.itemId),
+      };
+    }
+
+    case 'EQUIP_ITEM': {
+      const { itemId, slot } = action;
+      const item = state.player.inventory.find(i => i.id === itemId);
+      if (!item || item.slot !== slot) return state;
+      const displaced = state.player.equipped[slot];
+      const newInventory = state.player.inventory
+        .filter(i => i.id !== itemId)
+        .concat(displaced ? [displaced] : []);
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          inventory: newInventory,
+          equipped: { ...state.player.equipped, [slot]: item },
+        },
+      };
+    }
+
+    case 'UNEQUIP_ITEM': {
+      const { slot } = action;
+      const item = state.player.equipped[slot];
+      if (!item) return state;
+      const newEquipped = { ...state.player.equipped };
+      delete newEquipped[slot];
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          equipped: newEquipped,
+          inventory: [...state.player.inventory, item],
         },
       };
     }

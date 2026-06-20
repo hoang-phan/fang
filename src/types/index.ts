@@ -50,6 +50,8 @@ export interface PlayerStats {
   stats: PlayerStatBonuses; // allocated bonuses per element type
   baseDamage: number;       // flat bonus added to all outgoing attacks
   baseDefense: number;      // flat reduction applied to all incoming attacks
+  inventory: EquipmentItem[];
+  equipped: EquippedItems;
 }
 
 export interface OpponentDef {
@@ -116,6 +118,8 @@ export interface BattleState {
   activeEffects: ActiveEffect[];
   playerStunned: boolean;   // true when player's action should be skipped this turn
   opponentStunned: boolean; // true when opponent's action should be skipped this turn
+  hpRegenPerTurn: number;   // from equipment hpRegen enhancements
+  mpRegenPerTurn: number;   // from equipment mpRegen enhancements
 }
 
 export type GameScreen = 'opponent_select' | 'battle' | 'reward' | 'shop';
@@ -138,6 +142,7 @@ export interface GameState {
   activeBattle: BattleState | null;
   opponentProgress: Record<string, OpponentProgress>; // xp/level per opponent id
   lastDefeatedOpponent: OpponentDef | null;
+  shopEquipment: EquipmentItem[];
 }
 
 export type ShopItemType = 'hp_restore' | 'mp_restore' | 'max_hp_up' | 'max_mp_up';
@@ -150,4 +155,47 @@ export interface ShopItem {
   cost: number;
   value: number;
   icon: string;
+}
+
+// ─── Equipment System ──────────────────────────────────────────────────────────
+
+export type ItemSlot =
+  | 'headgear' | 'bodyArmor' | 'weapon' | 'shield' | 'amulet'
+  | 'ringLeft' | 'ringRight' | 'gauntlets' | 'boots'
+  | 'charm1' | 'charm2' | 'charm3';
+
+export type ItemQuality = 'rude' | 'normal' | 'rare' | 'legendary';
+
+export type EnhancementType =
+  | 'hpBoost' | 'mpBoost' | 'damageBoost' | 'defenseBoost'
+  | 'elementDamage' | 'hpRegen' | 'mpRegen' | 'elementResist';
+
+export interface Enhancement {
+  type: EnhancementType;
+  value: number;
+  element?: ElementType; // required for elementDamage / elementResist
+}
+
+export interface EquipmentItem {
+  id: string;
+  slot: ItemSlot;
+  quality: ItemQuality;
+  name: string;
+  icon: string;
+  baseDamage?: number;  // weapon only
+  baseDefense?: number; // headgear, bodyArmor, gauntlets, boots, shield only
+  enhancements: Enhancement[];
+}
+
+export type EquippedItems = Partial<Record<ItemSlot, EquipmentItem>>;
+
+export interface EquipmentStatDeltas {
+  bonusDamage: number;
+  bonusDefense: number;
+  hpBoost: number;
+  mpBoost: number;
+  hpRegen: number;
+  mpRegen: number;
+  elementDamage: Partial<Record<ElementType, number>>;
+  elementResist: Partial<Record<ElementType, number>>; // deferred — not yet wired into damage formula
 }

@@ -45,6 +45,11 @@
   --reward-loot:        #d97706;   /* loot reward border */
   --reward-loot-bg:     #1c1306;   /* loot reward card bg */
   --reward-loot-hover:  #261a08;   /* loot reward hover */
+
+  --quality-rude:       #8a8a8a;
+  --quality-normal:     #6cb4e4;
+  --quality-rare:       #f5c842;
+  --quality-legendary:  #c77dff;
 }
 
 /* ─── TAILWIND THEME BRIDGE ─────────────────────────────────────────────────
