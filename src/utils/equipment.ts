@@ -1,6 +1,6 @@
 import type {
   EquipmentItem, EquippedItems, EquipmentStatDeltas,
-  ItemSlot, ItemQuality, Enhancement, EnhancementType, ElementType,
+  ItemSlot, ItemCategory, ItemQuality, Enhancement, EnhancementType, ElementType,
 } from '../types';
 
 // ─── Slot metadata ─────────────────────────────────────────────────────────────
@@ -35,15 +35,68 @@ export const SLOT_LABELS: Record<ItemSlot, string> = {
   charm3:    'Charm III',
 };
 
-const DEFENSE_SLOTS: ItemSlot[] = ['headgear', 'bodyArmor', 'gauntlets', 'boots', 'shield'];
+export const CATEGORY_ICONS: Record<ItemCategory, string> = {
+  headgear:  '🪖',
+  bodyArmor: '🥋',
+  weapon:    '⚔️',
+  shield:    '🛡️',
+  amulet:    '📿',
+  ring:      '💍',
+  gauntlets: '🥊',
+  boots:     '👢',
+  charm:     '🔮',
+};
+
+export const CATEGORY_LABELS: Record<ItemCategory, string> = {
+  headgear:  'Headgear',
+  bodyArmor: 'Body Armor',
+  weapon:    'Weapon',
+  shield:    'Shield',
+  amulet:    'Amulet',
+  ring:      'Ring',
+  gauntlets: 'Gauntlets',
+  boots:     'Boots',
+  charm:     'Charm',
+};
+
+// Maps each ItemSlot to its ItemCategory
+export const SLOT_TO_CATEGORY: Record<ItemSlot, ItemCategory> = {
+  headgear:  'headgear',
+  bodyArmor: 'bodyArmor',
+  weapon:    'weapon',
+  shield:    'shield',
+  amulet:    'amulet',
+  ringLeft:  'ring',
+  ringRight: 'ring',
+  gauntlets: 'gauntlets',
+  boots:     'boots',
+  charm1:    'charm',
+  charm2:    'charm',
+  charm3:    'charm',
+};
+
+// Maps each ItemCategory to the slots it can fill
+export const CATEGORY_SLOTS: Record<ItemCategory, ItemSlot[]> = {
+  headgear:  ['headgear'],
+  bodyArmor: ['bodyArmor'],
+  weapon:    ['weapon'],
+  shield:    ['shield'],
+  amulet:    ['amulet'],
+  ring:      ['ringLeft', 'ringRight'],
+  gauntlets: ['gauntlets'],
+  boots:     ['boots'],
+  charm:     ['charm1', 'charm2', 'charm3'],
+};
+
+const DEFENSE_CATEGORIES: ItemCategory[] = ['headgear', 'bodyArmor', 'gauntlets', 'boots', 'shield'];
 
 // ─── Enhancement value ranges by quality ──────────────────────────────────────
 
 const ENHANCEMENT_RANGES: Record<ItemQuality, Record<EnhancementType, [number, number]>> = {
-  rude:      { hpBoost:[0,0], mpBoost:[0,0], damageBoost:[0,0], defenseBoost:[0,0], elementDamage:[0,0], hpRegen:[0,0], mpRegen:[0,0], elementResist:[0,0] },
-  normal:    { hpBoost:[5,15], mpBoost:[3,8], damageBoost:[1,4], defenseBoost:[1,3], elementDamage:[1,4], hpRegen:[1,3], mpRegen:[1,2], elementResist:[2,6] },
-  rare:      { hpBoost:[12,30], mpBoost:[6,16], damageBoost:[3,8], defenseBoost:[2,6], elementDamage:[3,8], hpRegen:[2,5], mpRegen:[2,4], elementResist:[5,12] },
-  legendary: { hpBoost:[25,60], mpBoost:[12,30], damageBoost:[6,15], defenseBoost:[5,12], elementDamage:[6,15], hpRegen:[4,10], mpRegen:[3,8], elementResist:[10,20] },
+  rude:      { hpBoost:[0,0], mpBoost:[0,0], damageBoost:[0,0], defenseBoost:[0,0], elementDamage:[0,0], hpRegen:[0,0], mpRegen:[0,0], elementResist:[0,0], goldLootBoost:[0,0], dropChanceBoost:[0,0] },
+  normal:    { hpBoost:[5,15], mpBoost:[3,8], damageBoost:[1,4], defenseBoost:[1,3], elementDamage:[1,4], hpRegen:[1,3], mpRegen:[1,2], elementResist:[2,6], goldLootBoost:[5,15], dropChanceBoost:[3,10] },
+  rare:      { hpBoost:[12,30], mpBoost:[6,16], damageBoost:[3,8], defenseBoost:[2,6], elementDamage:[3,8], hpRegen:[2,5], mpRegen:[2,4], elementResist:[5,12], goldLootBoost:[12,30], dropChanceBoost:[8,20] },
+  legendary: { hpBoost:[25,60], mpBoost:[12,30], damageBoost:[6,15], defenseBoost:[5,12], elementDamage:[6,15], hpRegen:[4,10], mpRegen:[3,8], elementResist:[10,20], goldLootBoost:[25,60], dropChanceBoost:[15,40] },
 };
 
 const BASE_DAMAGE_RANGES: Record<ItemQuality, [number, number]> = {
@@ -66,10 +119,10 @@ const ALL_ELEMENTS: ElementType[] = [
 
 // ─── Enhancement pool per slot ────────────────────────────────────────────────
 
-function allowedEnhancements(slot: ItemSlot): EnhancementType[] {
-  const base: EnhancementType[] = ['hpBoost', 'mpBoost', 'hpRegen', 'mpRegen', 'elementDamage', 'elementResist'];
-  if (slot === 'weapon') base.push('damageBoost');
-  if (DEFENSE_SLOTS.includes(slot)) base.push('defenseBoost');
+function allowedEnhancements(category: ItemCategory): EnhancementType[] {
+  const base: EnhancementType[] = ['hpBoost', 'mpBoost', 'hpRegen', 'mpRegen', 'elementDamage', 'elementResist', 'goldLootBoost', 'dropChanceBoost'];
+  if (category === 'weapon') base.push('damageBoost');
+  if (DEFENSE_CATEGORIES.includes(category)) base.push('defenseBoost');
   return base;
 }
 
@@ -96,28 +149,25 @@ const WEAPON_NAMES: Record<ItemQuality, string[]> = {
   legendary: ['Doomfang', 'Soulreaver', 'Dawnbreaker'],
 };
 
-const ARMOR_NAMES: Partial<Record<ItemSlot, Record<ItemQuality, string[]>>> = {
+const CATEGORY_NAMES: Partial<Record<ItemCategory, Record<ItemQuality, string[]>>> = {
   headgear:  { rude:['Cloth Hood'], normal:['Iron Helm'], rare:['Runic Circlet'], legendary:['Crown of Ages'] },
   bodyArmor: { rude:['Torn Tunic'], normal:['Chainmail'], rare:['Plate Cuirass'], legendary:['Dragonscale Armor'] },
   shield:    { rude:['Buckler'], normal:['Kite Shield'], rare:['Tower Shield'], legendary:['Aegis of the Ancients'] },
   gauntlets: { rude:['Cloth Wraps'], normal:['Iron Gauntlets'], rare:['Runic Grips'], legendary:['Godfist'] },
   boots:     { rude:['Worn Sandals'], normal:['Iron Greaves'], rare:['Runic Treads'], legendary:['Windwalkers'] },
   amulet:    { rude:['Bone Bead'], normal:['Silver Pendant'], rare:['Runic Amulet'], legendary:['Eye of the Void'] },
-  ringLeft:  { rude:['Copper Band'], normal:['Silver Ring'], rare:['Gold Ring'], legendary:['Ring of the Ancients'] },
-  ringRight: { rude:['Copper Band'], normal:['Silver Ring'], rare:['Gold Ring'], legendary:['Ring of the Ancients'] },
-  charm1:    { rude:['Pebble'], normal:['Minor Charm'], rare:['Grand Charm'], legendary:['Hellfire Charm'] },
-  charm2:    { rude:['Pebble'], normal:['Minor Charm'], rare:['Grand Charm'], legendary:['Hellfire Charm'] },
-  charm3:    { rude:['Pebble'], normal:['Minor Charm'], rare:['Grand Charm'], legendary:['Hellfire Charm'] },
+  ring:      { rude:['Copper Band'], normal:['Silver Ring'], rare:['Gold Ring'], legendary:['Ring of the Ancients'] },
+  charm:     { rude:['Pebble'], normal:['Minor Charm'], rare:['Grand Charm'], legendary:['Hellfire Charm'] },
 };
 
-function pickName(slot: ItemSlot, quality: ItemQuality): string {
-  if (slot === 'weapon') {
+function pickName(category: ItemCategory, quality: ItemQuality): string {
+  if (category === 'weapon') {
     const names = WEAPON_NAMES[quality];
     return names[Math.floor(Math.random() * names.length)];
   }
-  const names = ARMOR_NAMES[slot]?.[quality];
+  const names = CATEGORY_NAMES[category]?.[quality];
   if (names && names.length > 0) return names[Math.floor(Math.random() * names.length)];
-  return `${quality} ${SLOT_LABELS[slot]}`;
+  return `${quality} ${CATEGORY_LABELS[category]}`;
 }
 
 // ─── Enhancement count per quality ───────────────────────────────────────────
@@ -128,13 +178,13 @@ const ENHANCEMENT_COUNT: Record<ItemQuality, number> = {
 
 // ─── Main generator ───────────────────────────────────────────────────────────
 
-export function generateEquipmentItem(slot: ItemSlot, quality: ItemQuality): EquipmentItem {
+export function generateEquipmentItem(category: ItemCategory, quality: ItemQuality): EquipmentItem {
   const id = `eq_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-  const name = pickName(slot, quality);
-  const icon = SLOT_ICONS[slot];
+  const name = pickName(category, quality);
+  const icon = CATEGORY_ICONS[category];
   const count = ENHANCEMENT_COUNT[quality];
 
-  const pool = allowedEnhancements(slot);
+  const pool = allowedEnhancements(category);
   const picked: Enhancement[] = [];
   const usedTypes = new Set<string>();
 
@@ -146,12 +196,12 @@ export function generateEquipmentItem(slot: ItemSlot, quality: ItemQuality): Equ
     picked.push(rollEnhancement(type, quality));
   }
 
-  const item: EquipmentItem = { id, slot, quality, name, icon, enhancements: picked };
+  const item: EquipmentItem = { id, category, quality, name, icon, enhancements: picked };
 
-  if (slot === 'weapon') {
+  if (category === 'weapon') {
     const [min, max] = BASE_DAMAGE_RANGES[quality];
     item.baseDamage = randInt(min, max);
-  } else if (DEFENSE_SLOTS.includes(slot)) {
+  } else if (DEFENSE_CATEGORIES.includes(category)) {
     const [min, max] = BASE_DEFENSE_RANGES[quality];
     item.baseDefense = randInt(min, max);
   }
@@ -161,9 +211,8 @@ export function generateEquipmentItem(slot: ItemSlot, quality: ItemQuality): Equ
 
 // ─── Shop stock generator ─────────────────────────────────────────────────────
 
-const ALL_SLOTS: ItemSlot[] = [
-  'headgear','bodyArmor','weapon','shield','amulet',
-  'ringLeft','ringRight','gauntlets','boots','charm1','charm2','charm3',
+const ALL_CATEGORIES: ItemCategory[] = [
+  'headgear','bodyArmor','weapon','shield','amulet','ring','ring','gauntlets','boots','charm','charm','charm',
 ];
 
 const QUALITY_WEIGHTS: [ItemQuality, number][] = [
@@ -182,8 +231,8 @@ function rollQuality(): ItemQuality {
 
 export function generateShopEquipment(): EquipmentItem[] {
   const count = 4 + Math.floor(Math.random() * 3); // 4, 5, or 6
-  const shuffled = [...ALL_SLOTS].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count).map(slot => generateEquipmentItem(slot, rollQuality()));
+  const shuffled = [...ALL_CATEGORIES].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count).map(category => generateEquipmentItem(category, rollQuality()));
 }
 
 // ─── Cost ─────────────────────────────────────────────────────────────────────
@@ -209,6 +258,8 @@ export function computeEquipmentStats(equipped: EquippedItems): EquipmentStatDel
     elementDamage: {},
     // TODO: wire elementResist into battleReducer damage formula (additive with stat-point elemental bonuses on the defender side)
     elementResist: {},
+    goldLootBoostPct: 0,
+    dropChanceBoostPct: 0,
   };
 
   for (const item of Object.values(equipped) as EquipmentItem[]) {
@@ -234,6 +285,8 @@ export function computeEquipmentStats(equipped: EquippedItems): EquipmentStatDel
             result.elementResist[enh.element] = (result.elementResist[enh.element] ?? 0) + enh.value;
           }
           break;
+        case 'goldLootBoost':   result.goldLootBoostPct += enh.value; break;
+        case 'dropChanceBoost': result.dropChanceBoostPct += enh.value; break;
       }
     }
   }

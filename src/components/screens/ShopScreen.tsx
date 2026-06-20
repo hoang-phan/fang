@@ -2,7 +2,7 @@ import type { Dispatch } from 'react';
 import type { GameState } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
 import { SHOP_ITEMS } from '../../data/shopItems';
-import { equipmentCost, SLOT_LABELS } from '../../utils/equipment';
+import { equipmentCost, CATEGORY_LABELS } from '../../utils/equipment';
 import { GoldDisplay } from '../ui/GoldDisplay';
 import { Button } from '../ui/Button';
 import { ProgressBar } from '../ui/ProgressBar';
@@ -37,6 +37,8 @@ const ENHANCEMENT_LABELS: Record<string, string> = {
   hpRegen: 'HP/turn',
   mpRegen: 'MP/turn',
   elementResist: 'Resist',
+  goldLootBoost: 'Gold Loot %',
+  dropChanceBoost: 'Drop Chance %',
 };
 
 interface ShopScreenProps {
@@ -89,7 +91,7 @@ export function ShopScreen({ gameState, dispatch }: ShopScreenProps) {
                   <span className="text-3xl shrink-0 mt-1">{item.icon}</span>
                   <div className="flex-1 min-w-0">
                     <div className={`font-bold text-sm ${QUALITY_TEXT[item.quality]}`}>{item.name}</div>
-                    <div className="text-xs text-text-muted">{QUALITY_LABELS[item.quality]} · {SLOT_LABELS[item.slot]}</div>
+                    <div className="text-xs text-text-muted">{QUALITY_LABELS[item.quality]} · {CATEGORY_LABELS[item.category]}</div>
                     {item.baseDamage != null && (
                       <div className="text-xs text-orange-400">⚔️ {item.baseDamage} base dmg</div>
                     )}

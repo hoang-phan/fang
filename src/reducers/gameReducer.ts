@@ -2,7 +2,8 @@ import type { GameState, GameScreen, PlayerStats, RewardOption, BattleState, Mov
 import { SHOP_ITEMS } from '../data/shopItems';
 import { generateRewards } from '../utils/rewards';
 import { applyXp, calcPlayerXpGain, calcOpponentXpGain, getOpponentProgress, getScaledOpponent } from '../utils/xp';
-import { generateShopEquipment, computeEquipmentStats } from '../utils/equipment';
+import { generateShopEquipment, computeEquipmentStats, equipmentCost, CATEGORY_SLOTS } from '../utils/equipment';
+import { rollDrop } from '../utils/drops';
 
 export type StatPointTarget = ElementType | 'baseDamage' | 'baseDefense';
 
@@ -20,7 +21,8 @@ export type GameAction =
   | { type: 'SPEND_STAT_POINT'; target: StatPointTarget }
   | { type: 'BUY_EQUIPMENT'; itemId: string }
   | { type: 'EQUIP_ITEM'; itemId: string; slot: ItemSlot }
-  | { type: 'UNEQUIP_ITEM'; slot: ItemSlot };
+  | { type: 'UNEQUIP_ITEM'; slot: ItemSlot }
+  | { type: 'SELL_ITEM'; itemId: string };
 
 export const DEFAULT_PLAYER: PlayerStats = {
   name: 'Hero',
@@ -109,7 +111,23 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'BATTLE_VICTORY': {
       const { finalBattleState, goldSeed } = action;
       const opponentDef = finalBattleState.opponent.def;
-      const rewards = generateRewards(opponentDef, state.player, goldSeed, finalBattleState.opponentMovesUsed);
+
+      // Compute equipment stats for gold/drop bonuses (use canonical player equipped gear)
+      const victoryEqStats = computeEquipmentStats(state.player.equipped);
+      const baseRewards = generateRewards(opponentDef, state.player, goldSeed, finalBattleState.opponentMovesUsed);
+
+      // Apply gold loot boost and attach hidden drop to the loot reward
+      const droppedItem = rollDrop(opponentDef.level, victoryEqStats.dropChanceBoostPct);
+      const rewards: RewardOption[] = baseRewards.map(r => {
+        if (r.type !== 'loot' || r.gold == null) return r;
+        const boostedGold = Math.round(r.gold * (1 + victoryEqStats.goldLootBoostPct / 100));
+        return {
+          ...r,
+          gold: boostedGold,
+          description: `Claim ${boostedGold} gold from the fallen foe.`,
+          droppedItem: droppedItem ?? undefined,
+        };
+      });
       const defeatedOpponents = state.defeatedOpponents.includes(opponentDef.id)
         ? state.defeatedOpponents
         : [...state.defeatedOpponents, opponentDef.id];
@@ -188,6 +206,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       if (reward.type === 'loot' && reward.gold != null) {
         player = { ...player, gold: player.gold + reward.gold };
+        if (reward.droppedItem) {
+          player = { ...player, inventory: [...player.inventory, reward.droppedItem] };
+        }
       } else if (reward.type === 'learn_new' && reward.move) {
         const emptySlot = player.moves.findIndex(m => m === null);
         const newMoves = [...player.moves] as PlayerStats['moves'];
@@ -333,7 +354,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'EQUIP_ITEM': {
       const { itemId, slot } = action;
       const item = state.player.inventory.find(i => i.id === itemId);
-      if (!item || item.slot !== slot) return state;
+      if (!item || !CATEGORY_SLOTS[item.category].includes(slot)) return state;
       const displaced = state.player.equipped[slot];
       const newInventory = state.player.inventory
         .filter(i => i.id !== itemId)
@@ -360,6 +381,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           ...state.player,
           equipped: newEquipped,
           inventory: [...state.player.inventory, item],
+        },
+      };
+    }
+
+    case 'SELL_ITEM': {
+      const { itemId } = action;
+      const item = state.player.inventory.find(i => i.id === itemId);
+      if (!item) return state;
+      const sellValue = Math.floor(equipmentCost(item) * 0.4);
+      return {
+        ...state,
+        player: {
+          ...state.player,
+          gold: state.player.gold + sellValue,
+          inventory: state.player.inventory.filter(i => i.id !== itemId),
         },
       };
     }

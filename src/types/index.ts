@@ -128,6 +128,7 @@ export interface RewardOption {
   type: 'learn_new' | 'upskill' | 'loot' | 'cinematic';
   move?: Move;
   gold?: number;
+  droppedItem?: EquipmentItem; // hidden — only present on loot rewards, revealed when picked
   cinematicUrl?: string;
   label: string;
   description: string;
@@ -159,16 +160,24 @@ export interface ShopItem {
 
 // ─── Equipment System ──────────────────────────────────────────────────────────
 
+// Specific equipped positions — used as keys in EquippedItems
 export type ItemSlot =
   | 'headgear' | 'bodyArmor' | 'weapon' | 'shield' | 'amulet'
   | 'ringLeft' | 'ringRight' | 'gauntlets' | 'boots'
   | 'charm1' | 'charm2' | 'charm3';
 
+// Category stamped on EquipmentItem at generation time.
+// Rings and charms use shared categories so they can fill any slot of their kind.
+export type ItemCategory =
+  | 'headgear' | 'bodyArmor' | 'weapon' | 'shield' | 'amulet'
+  | 'ring' | 'charm' | 'gauntlets' | 'boots';
+
 export type ItemQuality = 'rude' | 'normal' | 'rare' | 'legendary';
 
 export type EnhancementType =
   | 'hpBoost' | 'mpBoost' | 'damageBoost' | 'defenseBoost'
-  | 'elementDamage' | 'hpRegen' | 'mpRegen' | 'elementResist';
+  | 'elementDamage' | 'hpRegen' | 'mpRegen' | 'elementResist'
+  | 'goldLootBoost' | 'dropChanceBoost';
 
 export interface Enhancement {
   type: EnhancementType;
@@ -178,7 +187,7 @@ export interface Enhancement {
 
 export interface EquipmentItem {
   id: string;
-  slot: ItemSlot;
+  category: ItemCategory;
   quality: ItemQuality;
   name: string;
   icon: string;
@@ -198,4 +207,6 @@ export interface EquipmentStatDeltas {
   mpRegen: number;
   elementDamage: Partial<Record<ElementType, number>>;
   elementResist: Partial<Record<ElementType, number>>; // deferred — not yet wired into damage formula
+  goldLootBoostPct: number;
+  dropChanceBoostPct: number;
 }

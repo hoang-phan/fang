@@ -1,7 +1,12 @@
 import type { Dispatch } from 'react';
-import type { PlayerStats, ItemSlot } from '../../types';
+import type { PlayerStats, ItemSlot, EquipmentItem } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
-import { SLOT_ICONS, SLOT_LABELS } from '../../utils/equipment';
+import { SLOT_ICONS, SLOT_LABELS, CATEGORY_ICONS, CATEGORY_LABELS, CATEGORY_SLOTS, equipmentCost } from '../../utils/equipment';
+
+function resolveEquipSlot(item: EquipmentItem, equipped: PlayerStats['equipped']): ItemSlot {
+  const slots = CATEGORY_SLOTS[item.category];
+  return slots.find(s => !equipped[s]) ?? slots[0];
+}
 
 const ALL_SLOTS: ItemSlot[] = [
   'headgear', 'bodyArmor', 'weapon', 'shield', 'amulet',
@@ -36,6 +41,8 @@ const ENHANCEMENT_LABELS: Record<string, string> = {
   hpRegen: 'HP Regen/turn',
   mpRegen: 'MP Regen/turn',
   elementResist: 'Elem. Resist',
+  goldLootBoost: 'Gold Loot %',
+  dropChanceBoost: 'Drop Chance %',
 };
 
 interface Props {
@@ -87,7 +94,7 @@ export function EquipmentPanel({ player, dispatch }: Props) {
                 <span className="text-xl shrink-0 mt-0.5">{item.icon}</span>
                 <div className="flex-1 min-w-0">
                   <div className={`text-xs font-bold ${QUALITY_TEXT[item.quality]}`}>{item.name}</div>
-                  <div className="text-[10px] text-text-faint">{QUALITY_LABELS[item.quality]} {SLOT_LABELS[item.slot]}</div>
+                  <div className="text-[10px] text-text-faint">{QUALITY_LABELS[item.quality]} {CATEGORY_LABELS[item.category]}</div>
                   {item.baseDamage != null && (
                     <div className="text-[10px] text-orange-400">⚔️ {item.baseDamage} base dmg</div>
                   )}
@@ -100,12 +107,21 @@ export function EquipmentPanel({ player, dispatch }: Props) {
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={() => dispatch({ type: 'EQUIP_ITEM', itemId: item.id, slot: item.slot })}
-                  className="text-[10px] px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black rounded font-bold shrink-0 cursor-pointer"
-                >
-                  Equip
-                </button>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <button
+                    onClick={() => dispatch({ type: 'EQUIP_ITEM', itemId: item.id, slot: resolveEquipSlot(item, player.equipped) })}
+                    className="text-[10px] px-2 py-1 bg-yellow-500 hover:bg-yellow-400 text-black rounded font-bold cursor-pointer"
+                  >
+                    Equip
+                  </button>
+                  <button
+                    onClick={() => dispatch({ type: 'SELL_ITEM', itemId: item.id })}
+                    className="text-[10px] px-2 py-1 bg-theme-hover hover:bg-red-900/40 text-text-muted hover:text-red-400 border border-border-mid rounded font-bold cursor-pointer"
+                    title={`Sell for ${Math.floor(equipmentCost(item) * 0.4)}g`}
+                  >
+                    {Math.floor(equipmentCost(item) * 0.4)}g
+                  </button>
+                </div>
               </div>
             ))}
           </div>
