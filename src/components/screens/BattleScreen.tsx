@@ -61,7 +61,7 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
   return (
     <div className="h-screen flex flex-col bg-theme-base relative">
       {/* Header */}
-      <div className="shrink-0 bg-theme-surface border-b border-border-mid px-4 py-2 flex items-center justify-between">
+      <div className="shrink-0 bg-theme-surface border-b border-border-mid px-3 lg:px-4 py-2 flex items-center justify-between gap-2">
         <span className="font-pixel text-xs text-text-muted">Turn {state.turn}</span>
         <span className={`font-mono text-sm font-bold ${
           state.phase === 'victory' ? 'text-accent' :

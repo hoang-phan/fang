@@ -47,19 +47,21 @@ export function statusLabel(type: ElementType): string {
 // ─── MoveContext ─────────────────────────────────────────────────────────────
 
 export interface MoveContext {
-  casterHp:        number;
-  casterMaxHp:     number;
-  targetHp:        number;
-  targetMaxHp:     number;
-  activeEffects:   ActiveEffect[];
-  logs:            BattleLogEntry[];
-  casterSide:      'player' | 'opponent';
-  casterName:      string;  // "You" | opponent display name
-  targetSide:      'player' | 'opponent';
-  targetName:      string;  // "you" | opponent display name
-  move:            Move;
-  lastDamageDealt: number;  // post-shield damage dealt — read by applyLeech
-  lastRawEffect:   number;  // pre-shield raw effect — used for damage animation
+  casterHp:          number;
+  casterMaxHp:       number;
+  targetHp:          number;
+  targetMaxHp:       number;
+  activeEffects:     ActiveEffect[];
+  logs:              BattleLogEntry[];
+  casterSide:        'player' | 'opponent';
+  casterName:        string;  // "You" | opponent display name
+  targetSide:        'player' | 'opponent';
+  targetName:        string;  // "you" | opponent display name
+  move:              Move;
+  lastDamageDealt:   number;  // post-shield damage dealt — read by applyLeech
+  lastRawEffect:     number;  // pre-shield raw effect — used for damage animation
+  attackerBaseDamage: number; // flat bonus from attacker's baseDamage stat
+  defenderBaseDefense: number; // flat reduction from defender's baseDefense stat
 }
 
 // ─── Effect handlers ─────────────────────────────────────────────────────────
@@ -81,7 +83,9 @@ export function applyHeal(ctx: MoveContext, statBonuses?: PlayerStatBonuses): Mo
 
 export function applyDamage(ctx: MoveContext, defenderType: ElementType, statBonuses?: PlayerStatBonuses): MoveContext {
   if (ctx.move.baseDamage <= 0) return ctx;
-  const rawEffect = calcMoveEffect(ctx.move, defenderType, statBonuses);
+  const elementalDamage = calcMoveEffect(ctx.move, defenderType, statBonuses);
+  // Total pre-shield damage: attacker's baseDamage bonus - defender's baseDefense + elemental damage
+  const rawEffect = Math.max(1, elementalDamage + ctx.attackerBaseDamage - ctx.defenderBaseDefense);
   const shield = sumShield(ctx.activeEffects, ctx.targetSide);
   const damage = Math.max(0, rawEffect - shield);
   const effectiveness = getTypeEffectiveness(ctx.move.type, defenderType);

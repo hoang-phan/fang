@@ -53,6 +53,8 @@ function resolveOpponentSpecial(state: BattleState, move: Move): AttackResult {
       casterSide: 'opponent', casterName: def.name,
       targetSide: 'player', targetName: 'you',
       move, lastDamageDealt: 0, lastRawEffect: 0,
+      attackerBaseDamage: def.baseDamage,
+      defenderBaseDefense: state.player.baseDefense,
     } satisfies MoveContext,
     playerDefType,
   );
@@ -69,7 +71,9 @@ function resolveOpponentSpecial(state: BattleState, move: Move): AttackResult {
 function resolveOpponentAutoAttack(state: BattleState): AttackResult {
   const { def } = state.opponent;
   const spread = def.baseDamage * def.damageVariance;
-  const rawDmg = Math.max(1, Math.round(def.baseDamage + (Math.random() * spread * 2 - spread)));
+  const autoBase = Math.round(def.baseDamage + (Math.random() * spread * 2 - spread));
+  // Apply baseDefense stats: attacker baseDamage is already baked into autoBase; subtract player baseDefense
+  const rawDmg = Math.max(1, autoBase - state.player.baseDefense);
   const shield = sumShield(state.activeEffects, 'player');
   const dmg = Math.max(0, rawDmg - shield);
 
@@ -99,7 +103,8 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
       if (state.phase !== 'player_turn') return state;
       if (state.playerStunned) return state;
 
-      const rawDmg = calcMoveEffect(BASIC_ATTACK, state.opponent.def.type, state.player.stats);
+      const elementalDmg = calcMoveEffect(BASIC_ATTACK, state.opponent.def.type, state.player.stats);
+      const rawDmg = Math.max(1, elementalDmg + state.player.baseDamage - state.opponent.def.baseDefense);
       const shield = sumShield(state.activeEffects, 'opponent');
       const dmg = Math.max(0, rawDmg - shield);
       const newOpponentHp = Math.max(0, state.opponent.hp - dmg);
@@ -134,6 +139,8 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
           casterSide: 'player', casterName: 'You',
           targetSide: 'opponent', targetName: state.opponent.def.name,
           move, lastDamageDealt: 0, lastRawEffect: 0,
+          attackerBaseDamage: state.player.baseDamage,
+          defenderBaseDefense: state.opponent.def.baseDefense,
         } satisfies MoveContext,
         state.opponent.def.type,
         state.player.stats,

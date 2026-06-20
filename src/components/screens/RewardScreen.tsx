@@ -52,12 +52,12 @@ export function RewardScreen({ gameState, dispatch }: RewardScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-theme-base flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-theme-base flex flex-col items-center justify-center p-4 lg:p-6">
       <div className="w-full max-w-lg">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="text-6xl mb-4">🏆</div>
-          <h1 className="font-pixel text-accent text-lg mb-2">Victory!</h1>
+        <div className="text-center mb-6 lg:mb-8">
+          <div className="text-4xl lg:text-6xl mb-3 lg:mb-4">🏆</div>
+          <h1 className="font-pixel text-accent text-base lg:text-lg mb-2">Victory!</h1>
           <p className="text-text-muted text-sm">Choose your reward</p>
         </div>
 

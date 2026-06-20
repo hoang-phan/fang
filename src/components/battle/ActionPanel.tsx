@@ -12,13 +12,13 @@ interface ActionPanelProps {
 
 export function ActionPanel({ player, isPlayerTurn, opponentType, dispatch }: ActionPanelProps) {
   return (
-    <div className="bg-theme-base border-t border-border-mid p-4 flex flex-col gap-3">
+    <div className="bg-theme-base border-t border-border-mid p-3 lg:p-4 flex flex-col gap-2 lg:gap-3">
       {/* Attack button */}
       <button
         onClick={() => dispatch({ type: 'USE_ATTACK' })}
         disabled={!isPlayerTurn}
         className={`
-          w-full py-3 rounded-lg font-bold text-sm transition-all duration-150 flex items-center justify-center gap-2
+          w-full py-2 lg:py-3 rounded-lg font-bold text-sm transition-all duration-150 flex items-center justify-center gap-2
           ${isPlayerTurn
             ? 'bg-accent hover:bg-accent-hover text-accent-text cursor-pointer'
             : 'bg-theme-raised text-text-faint cursor-not-allowed opacity-50'

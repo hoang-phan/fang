@@ -48,6 +48,8 @@ export interface PlayerStats {
   xp: number;
   statPoints: number;       // unspent points available to allocate
   stats: PlayerStatBonuses; // allocated bonuses per element type
+  baseDamage: number;       // flat bonus added to all outgoing attacks
+  baseDefense: number;      // flat reduction applied to all incoming attacks
 }
 
 export interface OpponentDef {
@@ -57,6 +59,7 @@ export interface OpponentDef {
   type: ElementType;
   maxHp: number;
   baseDamage: number;
+  baseDefense: number;
   damageVariance: number;
   moves: Move[];
   goldReward: [number, number];

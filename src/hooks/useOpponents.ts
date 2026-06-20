@@ -14,6 +14,7 @@ export function useOpponents(): { opponents: OpponentDef[]; loading: boolean } {
       .then(r => r.json())
       .then((data: OpponentDef[]) => {
         setOpponents(data.map(opp => ({
+          baseDefense: 0,
           ...opp,
           avatars: opp.avatars?.map(path => `${API_BASE}${path}`),
           cinematics: opp.cinematics?.map(addCinematicBaseUrl),

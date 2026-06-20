@@ -16,11 +16,11 @@ export function CombatantCard({ name, sprite, avatarUrl, hp, maxHp, mp, maxMp, i
   const bg = side === 'player' ? 'bg-player-bg border-player-border' : 'bg-enemy-bg border-enemy-border';
 
   return (
-    <div className={`rounded-xl border p-4 flex flex-col gap-3 ${bg} ${isFlashing ? 'damage-flash' : ''}`}>
-      <div className="flex items-center gap-3">
+    <div className={`rounded-xl border p-2 lg:p-4 flex flex-col gap-2 lg:gap-3 ${bg} ${isFlashing ? 'damage-flash' : ''}`}>
+      <div className="flex items-center gap-2 lg:gap-3">
         {avatarUrl
-          ? <img src={avatarUrl} alt={name} className="w-24 h-24 object-contain" />
-          : <span className="text-4xl">{sprite}</span>
+          ? <img src={avatarUrl} alt={name} className="w-14 h-14 lg:w-24 lg:h-24 object-contain shrink-0" />
+          : <span className="text-2xl lg:text-4xl shrink-0">{sprite}</span>
         }
         <div className="flex-1">
           <p className="font-pixel text-xs text-text-bright mb-2">{name}</p>

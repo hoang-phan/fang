@@ -3,6 +3,8 @@ import { SHOP_ITEMS } from '../data/shopItems';
 import { generateRewards } from '../utils/rewards';
 import { applyXp, calcPlayerXpGain, calcOpponentXpGain, getOpponentProgress, getScaledOpponent } from '../utils/xp';
 
+export type StatPointTarget = ElementType | 'baseDamage' | 'baseDefense';
+
 export type GameAction =
   | { type: 'SELECT_OPPONENT'; opponentId: string }
   | { type: 'START_BATTLE'; opponentDef: OpponentDef }
@@ -14,7 +16,7 @@ export type GameAction =
   | { type: 'BUY_SHOP_ITEM'; itemId: string }
   | { type: 'EQUIP_MOVE'; move: Move; slot: 0 | 1 | 2 | 3 }
   | { type: 'UNEQUIP_MOVE'; slot: 0 | 1 | 2 | 3 }
-  | { type: 'SPEND_STAT_POINT'; element: ElementType };
+  | { type: 'SPEND_STAT_POINT'; target: StatPointTarget };
 
 export const DEFAULT_PLAYER: PlayerStats = {
   name: 'Hero',
@@ -30,6 +32,8 @@ export const DEFAULT_PLAYER: PlayerStats = {
   xp: 0,
   statPoints: 0,
   stats: {},
+  baseDamage: 0,
+  baseDefense: 0,
 };
 
 export const DEFAULT_GAME_STATE: GameState = {
@@ -92,7 +96,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...finalBattleState.player,
         level: playerXpResult.level,
         xp: playerXpResult.xp,
-        statPoints: finalBattleState.player.statPoints + playerXpResult.levelsGained,
+        statPoints: finalBattleState.player.statPoints + playerXpResult.levelsGained * 5,
       };
 
       // Opponent gains XP for losing (small amount)
@@ -128,7 +132,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state.player,
         level: playerXpResult.level,
         xp: playerXpResult.xp,
-        statPoints: state.player.statPoints + playerXpResult.levelsGained,
+        statPoints: state.player.statPoints + playerXpResult.levelsGained * 5,
       };
 
       // Opponent gains big XP for winning
@@ -249,14 +253,34 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'SPEND_STAT_POINT': {
       if (state.player.statPoints <= 0) return state;
-      const { element } = action;
-      const current = state.player.stats?.[element] ?? 0;
+      const { target } = action;
+      if (target === 'baseDamage') {
+        return {
+          ...state,
+          player: {
+            ...state.player,
+            statPoints: state.player.statPoints - 1,
+            baseDamage: state.player.baseDamage + 1,
+          },
+        };
+      }
+      if (target === 'baseDefense') {
+        return {
+          ...state,
+          player: {
+            ...state.player,
+            statPoints: state.player.statPoints - 1,
+            baseDefense: state.player.baseDefense + 1,
+          },
+        };
+      }
+      const current = state.player.stats?.[target] ?? 0;
       return {
         ...state,
         player: {
           ...state.player,
           statPoints: state.player.statPoints - 1,
-          stats: { ...(state.player.stats ?? {}), [element]: current + 1 },
+          stats: { ...(state.player.stats ?? {}), [target]: current + 1 },
         },
       };
     }

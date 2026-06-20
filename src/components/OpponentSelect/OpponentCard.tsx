@@ -39,21 +39,21 @@ export function OpponentCard({ opp, oppProgress, unlocked, defeated, selected, d
     >
       <div className="flex items-center gap-3">
         {!unlocked
-          ? <span className="text-4xl">🔒</span>
+          ? <span className="text-3xl lg:text-4xl shrink-0">🔒</span>
           : avatarUrl
-            ? <img src={avatarUrl} alt={opp.name} className="w-24 h-24 object-contain" />
-            : <span className="text-4xl">{opp.sprite}</span>
+            ? <img src={avatarUrl} alt={opp.name} className="w-16 h-16 lg:w-24 lg:h-24 object-contain shrink-0" />
+            : <span className="text-3xl lg:text-4xl shrink-0">{opp.sprite}</span>
         }
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="font-bold text-text-bright text-sm">{opp.name}</span>
             <span className="text-xs text-purple-400 font-pixel">Lv {oppProgress.level}</span>
             {defeated && <span className="text-xs text-green-400">✓ Defeated</span>}
             {!unlocked && <span className="text-xs text-text-faint">Locked</span>}
           </div>
           <p className="text-xs text-text-muted truncate">{opp.flavourText}</p>
-          <div className="flex items-center gap-3 mt-2">
-            <div className="w-24">
+          <div className="flex items-center gap-2 lg:gap-3 mt-2 flex-wrap">
+            <div className="w-20 lg:w-24">
               <ProgressBar label="HP" value={scaled.maxHp} max={scaled.maxHp} autoColor />
             </div>
             <span className="text-xs text-accent">💰 {opp.goldReward[0]}–{opp.goldReward[1]}g</span>
@@ -67,7 +67,7 @@ export function OpponentCard({ opp, oppProgress, unlocked, defeated, selected, d
             <span className="text-xs text-text-faint">{oppProgress.xp}/{xpNeeded} XP</span>
           </div>
         </div>
-        {selected && <span className="text-accent text-xl">▶</span>}
+        {selected && <span className="text-accent text-xl shrink-0">▶</span>}
       </div>
     </button>
   );

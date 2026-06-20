@@ -19,7 +19,7 @@ export function ShopScreen({ gameState, dispatch }: ShopScreenProps) {
   return (
     <div className="min-h-screen bg-theme-base flex flex-col">
       {/* Header */}
-      <div className="bg-theme-surface border-b border-border-mid px-6 py-4 flex items-center justify-between">
+      <div className="bg-theme-surface border-b border-border-mid px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-between gap-2">
         <h1 className="font-pixel text-accent text-sm">🛒 Shop</h1>
         <GoldDisplay gold={player.gold} />
         <Button variant="ghost" onClick={() => dispatch({ type: 'GO_TO_OPPONENT_SELECT' })}>
@@ -27,9 +27,9 @@ export function ShopScreen({ gameState, dispatch }: ShopScreenProps) {
         </Button>
       </div>
 
-      <div className="flex flex-1 gap-0 overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 gap-0 overflow-hidden">
         {/* Shop items */}
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex-1 p-4 lg:p-6 overflow-y-auto">
           {/* Player vitals */}
           <div className="bg-theme-surface rounded-xl border border-border-mid p-4 mb-6 flex gap-4">
             <div className="flex-1">
@@ -47,7 +47,7 @@ export function ShopScreen({ gameState, dispatch }: ShopScreenProps) {
               return (
                 <div
                   key={item.id}
-                  className={`rounded-xl border p-4 flex flex-col gap-2 ${
+                  className={`rounded-xl border p-3 lg:p-4 flex flex-col gap-2 ${
                     canAfford ? 'border-border-strong bg-theme-surface/60' : 'border-border-mid bg-theme-surface/30 opacity-60'
                   }`}
                 >
@@ -77,7 +77,7 @@ export function ShopScreen({ gameState, dispatch }: ShopScreenProps) {
         </div>
 
         {/* Sidebar: stats + loadout */}
-        <div className="w-80 shrink-0 border-l border-border-mid p-4 overflow-y-auto bg-theme-muted/50 flex flex-col gap-4">
+        <div className="w-full lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-border-mid p-4 overflow-y-auto bg-theme-muted/50 flex flex-col gap-4">
           <StatsPanel player={player} dispatch={dispatch} />
           <PlayerLoadout player={player} dispatch={dispatch} />
         </div>
