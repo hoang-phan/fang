@@ -1,6 +1,8 @@
 import type { Conversation } from '../../types';
 import { useConversationAdvance } from './useConversationAdvance';
 
+export const API_BASE = 'http://localhost:3000';
+
 interface ConversationOverlayProps {
   conversations: Conversation[];
   opponentAvatarUrl?: string;
@@ -43,19 +45,17 @@ export function ConversationOverlay({
       <div className="relative flex-1" />
 
       <div className="relative shrink-0 pb-1 px-4 flex flex-col items-start mx-auto w-full">
-        <div className="ml-4 w-20 h-20 overflow-hidden bg-theme-dialogue shrink-0">
-          {opponentAvatarUrl ? (
-            <img
-              src={opponentAvatarUrl}
-              alt={opponentName}
-              className="w-full h-full object-contain"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="text-4xl">{opponentSprite ?? '❓'}</span>
-            </div>
-          )}
-        </div>
+        {current.avatar && !isHero ? (
+          <img
+            src={`${API_BASE}/${current.avatar}`}
+            alt={opponentName}
+            className="absolute bottom-[150px] left-0 max-h-[600px] object-contain"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-4xl">{opponentSprite ?? '❓'}</span>
+          </div>
+        )}
 
         <div
           className="w-full rounded-xl rounded-tl-none border border-border-mid bg-theme-dialogue p-5 shadow-lg"
