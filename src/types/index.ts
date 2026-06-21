@@ -54,10 +54,23 @@ export interface PlayerStats {
   equipped: EquippedItems;
 }
 
+export interface Chat {
+  avatar: string;    // 'hero' | 'opponent' | any speaker identifier
+  position: number;
+  content: string;
+}
+
+export interface Conversation {
+  id: number;
+  chats: Chat[];
+  backgroundUrl?: string; // background image for the conversation scene
+  position?: number;      // display order (cinematics and gifts only)
+}
+
 export interface OpponentCinematic {
   level: number;       // relationship level required to unlock (1-based)
-  url: string;         // full image URL (prefixed with API base)
   description?: string;
+  conversations?: Conversation[];
 }
 
 export interface OpponentGift {
@@ -65,6 +78,7 @@ export interface OpponentGift {
   name: string;
   gold: number;        // cost to give
   exp: number;         // relationship XP gained
+  conversations?: Conversation[];
 }
 
 export interface OpponentDef {
@@ -85,6 +99,7 @@ export interface OpponentDef {
   avatars?: string[];       // full image URLs, one per opponent level
   cinematics?: OpponentCinematic[]; // dynamic — any number, ordered by level
   gifts?: OpponentGift[];           // dynamic — any number of gift options
+  conversations?: Conversation[];   // top-level chat conversations (one picked randomly on Chat)
 }
 
 // Tracks opponent XP progress (they gain XP too — persisted across sessions)

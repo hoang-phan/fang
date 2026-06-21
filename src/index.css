@@ -11,11 +11,13 @@
    enemy-*   → opponent combatant card
 ────────────────────────────────────────────────────────────────────────────── */
 :root {
-  --bg-base:        #1a0a12;   /* page background */
-  --bg-surface:     #26101a;   /* cards, panels */
-  --bg-raised:      #321520;   /* elevated elements, headers */
-  --bg-hover:       #3e1a28;   /* hover states */
-  --bg-muted:       #200d16;   /* subtle background tints */
+  --bg-base:         #1a0a12;   /* page background */
+  --bg-surface:      #26101a;   /* cards, panels */
+  --bg-raised:       #321520;   /* elevated elements, headers */
+  --bg-hover:        #3e1a28;   /* hover states */
+  --bg-muted:        #200d16;   /* subtle background tints */
+  --bg-conversation: #ffe0ee;   /* conversation background */
+  --bg-dialogue:     #FDC9D4;   /* dialogue background */
 
   --border-strong:  #c0406a;   /* prominent borders */
   --border-mid:     #7a2848;   /* standard borders */
@@ -62,6 +64,8 @@
   --color-theme-raised:       var(--bg-raised);
   --color-theme-hover:        var(--bg-hover);
   --color-theme-muted:        var(--bg-muted);
+  --color-theme-conversation: var(--bg-conversation);
+  --color-theme-dialogue:     var(--bg-dialogue);
 
   --color-border-strong:      var(--border-strong);
   --color-border-mid:         var(--border-mid);

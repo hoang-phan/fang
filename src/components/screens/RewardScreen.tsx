@@ -1,10 +1,11 @@
 import { useState, type Dispatch } from 'react';
-import type { GameState, RewardOption, EquipmentItem } from '../../types';
+import type { GameState, RewardOption, EquipmentItem, OpponentCinematic, Conversation } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
 import { GoldDisplay } from '../ui/GoldDisplay';
 import { CinematicsModal } from '../Reward/CinematicsModal';
+import { ConversationOverlay } from '../Reward/ConversationOverlay';
 import { RewardOptionCard } from '../Reward/RewardOption';
-import { getRelationshipProgress, relXpToNextLevel } from '../../utils/xp';
+import { getRelationshipProgress, relXpToNextLevel, getOpponentProgress } from '../../utils/xp';
 
 interface RewardScreenProps {
   gameState: GameState;
@@ -15,25 +16,28 @@ interface RewardScreenProps {
 type MenuView = 'main' | 'skills' | 'interactions' | 'gifts' | 'cinematics';
 
 export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenProps) {
-  const { pendingRewards, player, lastDefeatedOpponent, relationshipProgress } = gameState;
+  const { pendingRewards, player, lastDefeatedOpponent, relationshipProgress, opponentProgress } = gameState;
   const [menuView, setMenuView] = useState<MenuView>('main');
-  const [cinematicUrls, setCinematicUrls] = useState<string[]>([]);
-  const [slideIndex, setSlideIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
+  const [activeCinematic, setActiveCinematic] = useState<OpponentCinematic | null>(null);
+  const [pendingConversation, setPendingConversation] = useState<Conversation[] | null>(null);
+  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
   const opponentId = lastDefeatedOpponent?.id ?? '';
   const relProgress = getRelationshipProgress(relationshipProgress, opponentId);
   const relXpNeeded = relXpToNextLevel(relProgress.level);
 
+  // Avatar URL — same logic as CombatantCard: level-indexed, 0-based
+  const oppProgress = getOpponentProgress(opponentProgress, opponentId, lastDefeatedOpponent?.level ?? 1);
+  const avatarIndex = Math.min(oppProgress.level, 5) - 1;
+  const opponentAvatarUrl = lastDefeatedOpponent?.avatars?.[avatarIndex];
+
   const skillRewards = pendingRewards.filter(r => r.type === 'learn_new' || r.type === 'upskill');
   const lootReward = pendingRewards.find(r => r.type === 'loot');
 
-  // Cinematics: unlocked when relProgress.level >= cinematic.level - 1 (0-indexed unlock)
   const unlockedCinematics = (lastDefeatedOpponent?.cinematics ?? []).filter(
     c => relProgress.level >= c.level - 1
   );
 
-  // Gifts come from the opponent's dynamic gift list
   const availableGifts = lastDefeatedOpponent?.gifts ?? [];
 
   const handleChooseSkill = (reward: RewardOption) => {
@@ -45,29 +49,35 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
   };
 
   const handleChat = () => {
-    dispatch({ type: 'INTERACTION_CHAT', opponentId, shopItems });
+    const conversations = lastDefeatedOpponent?.conversations ?? [];
+    if (conversations.length > 0) {
+      const picked = conversations[Math.floor(Math.random() * conversations.length)];
+      setPendingConversation([picked]);
+      setPendingAction(() => () => dispatch({ type: 'INTERACTION_CHAT', opponentId, shopItems }));
+    } else {
+      dispatch({ type: 'INTERACTION_CHAT', opponentId, shopItems });
+    }
   };
 
   const handleGift = (giftId: number) => {
-    dispatch({ type: 'INTERACTION_GIFT', opponentId, giftId, shopItems });
+    const gift = availableGifts.find(g => g.id === giftId);
+    if (gift?.conversations && gift.conversations.length > 0) {
+      setPendingConversation(gift.conversations);
+      setPendingAction(() => () => dispatch({ type: 'INTERACTION_GIFT', opponentId, giftId, shopItems }));
+    } else {
+      dispatch({ type: 'INTERACTION_GIFT', opponentId, giftId, shopItems });
+    }
   };
 
-  const handleWatchCinematic = (url: string) => {
-    setCinematicUrls([url]);
-    setSlideIndex(0);
-    setVisible(true);
+  const handleWatchCinematic = (cinematic: OpponentCinematic) => {
+    setActiveCinematic(cinematic);
   };
 
-  const handleCinematicClose = () => {
-    setCinematicUrls([]);
-  };
-
-  const handleCycleCinematic = () => {
-    setVisible(false);
-    setTimeout(() => {
-      setSlideIndex(i => (i + 1) % cinematicUrls.length);
-      setVisible(true);
-    }, 500);
+  const handleConversationComplete = () => {
+    const action = pendingAction;
+    setPendingConversation(null);
+    setPendingAction(null);
+    action?.();
   };
 
   return (
@@ -219,7 +229,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
                 icon="🎬"
                 label={`Scene ${i + 1}`}
                 description={c.description ?? `Relationship level ${c.level - 1}`}
-                onClick={() => handleWatchCinematic(c.url)}
+                onClick={() => handleWatchCinematic(c)}
                 accent="pink"
               />
             ))}
@@ -227,13 +237,25 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
         )}
       </div>
 
+      {/* Cinematic overlay */}
       <CinematicsModal
-        cinematicUrls={cinematicUrls}
-        slideIndex={slideIndex}
-        visible={visible}
-        handleCinematicClose={handleCinematicClose}
-        onNext={cinematicUrls.length > 1 ? handleCycleCinematic : undefined}
+        cinematic={activeCinematic}
+        opponentAvatarUrl={opponentAvatarUrl}
+        opponentSprite={lastDefeatedOpponent?.sprite}
+        opponentName={lastDefeatedOpponent?.name ?? ''}
+        onClose={() => setActiveCinematic(null)}
       />
+
+      {/* Conversation overlay (chat / gift) */}
+      {pendingConversation && (
+        <ConversationOverlay
+          conversations={pendingConversation}
+          opponentAvatarUrl={opponentAvatarUrl}
+          opponentSprite={lastDefeatedOpponent?.sprite}
+          opponentName={lastDefeatedOpponent?.name ?? ''}
+          onComplete={handleConversationComplete}
+        />
+      )}
     </div>
   );
 }

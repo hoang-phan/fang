@@ -1,32 +1,46 @@
+import type { OpponentCinematic } from '../../types';
 import { Button } from '../ui/Button';
+import { ConversationOverlay } from './ConversationOverlay';
 
 interface CinematicsModalProps {
-  cinematicUrls: string[];
-  slideIndex: number;
-  visible: boolean;
-  handleCinematicClose: () => void;
-  onNext?: () => void;
+  cinematic: OpponentCinematic | null;
+  opponentAvatarUrl?: string;
+  opponentSprite?: string;
+  opponentName: string;
+  onClose: () => void;
 }
 
-export function CinematicsModal({ cinematicUrls, slideIndex, visible, handleCinematicClose, onNext }: CinematicsModalProps) {
-  if (cinematicUrls.length === 0) return <div />;
+export function CinematicsModal({ cinematic, opponentAvatarUrl, opponentSprite, opponentName, onClose }: CinematicsModalProps) {
+  if (!cinematic) return null;
 
-  return (
-    <div className="fixed inset-0 flex flex-col items-center justify-center z-50 p-4" style={{ background: 'var(--overlay-dark)' }}>
-      <div className="w-full flex flex-col items-center justify-center">
-        <img
-          src={cinematicUrls[slideIndex]}
-          alt="Level cinematic"
-          className="w-5/6 rounded-lg max-h-[80vh] object-contain"
-          style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.5s ease-in-out' }}
-        />
-        <div className="mt-6 flex gap-3 justify-center">
-          {onNext && cinematicUrls.length > 1 && (
-            <Button variant="ghost" onClick={onNext}>Next →</Button>
+  const conversations = cinematic.conversations ?? [];
+
+  if (conversations.length === 0) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center select-none" style={{ background: 'rgba(10,2,8,0.92)' }}>
+        <div className="flex-1 flex items-center justify-center w-full p-6 min-h-0">
+          {opponentAvatarUrl ? (
+            <img src={opponentAvatarUrl} alt={opponentName} className="max-h-full max-w-full object-contain rounded-lg" style={{ maxHeight: '80vh' }} />
+          ) : (
+            <span className="text-8xl">{opponentSprite ?? '❓'}</span>
           )}
-          <Button onClick={handleCinematicClose}>Close</Button>
+        </div>
+        <div className="shrink-0 mb-6">
+          <Button onClick={onClose}>Close</Button>
         </div>
       </div>
-    </div>
+    );
+  }
+
+  // key resets ConversationOverlay state when a different cinematic is opened
+  return (
+    <ConversationOverlay
+      key={cinematic.level}
+      conversations={conversations}
+      opponentAvatarUrl={opponentAvatarUrl}
+      opponentSprite={opponentSprite}
+      opponentName={opponentName}
+      onComplete={onClose}
+    />
   );
 }
