@@ -1,5 +1,5 @@
 import { useGame } from './hooks/useGame';
-import { useOpponents } from './hooks/useOpponents';
+import { useOpponents, useItems } from './hooks/useOpponents';
 import { OpponentSelectScreen } from './components/screens/OpponentSelectScreen';
 import { BattleScreen } from './components/screens/BattleScreen';
 import { RewardScreen } from './components/screens/RewardScreen';
@@ -8,6 +8,7 @@ import { ShopScreen } from './components/screens/ShopScreen';
 function App() {
   const { state, dispatch } = useGame();
   const { opponents, loading } = useOpponents();
+  const { items } = useItems();
 
   if (loading) {
     return (
@@ -29,7 +30,7 @@ function App() {
       );
 
     case 'reward':
-      return <RewardScreen gameState={state} dispatch={dispatch} />;
+      return <RewardScreen gameState={state} dispatch={dispatch} shopItems={items} />;
 
     case 'shop':
       return <ShopScreen gameState={state} dispatch={dispatch} />;

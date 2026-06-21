@@ -1,8 +1,16 @@
-import type { GameState, GameScreen, PlayerStats, RewardOption, BattleState, Move, ElementType, OpponentDef, ItemSlot } from '../types';
+import type { GameState, GameScreen, PlayerStats, RewardOption, BattleState, Move, ElementType, OpponentDef, ItemSlot, EquipmentItem } from '../types';
 import { SHOP_ITEMS } from '../data/shopItems';
 import { generateRewards } from '../utils/rewards';
-import { applyXp, calcPlayerXpGain, calcOpponentXpGain, getOpponentProgress, getScaledOpponent } from '../utils/xp';
+import { applyXp, calcPlayerXpGain, calcOpponentXpGain, getOpponentProgress, getScaledOpponent, getRelationshipProgress, applyRelXp } from '../utils/xp';
 import { generateShopEquipment, computeEquipmentStats, equipmentCost, CATEGORY_SLOTS } from '../utils/equipment';
+
+/** Pick 4–6 items from the backend pool, shuffled. Falls back to generated items if pool is empty. */
+function pickShopEquipment(pool: EquipmentItem[] | undefined): EquipmentItem[] {
+  if (!pool || pool.length === 0) return generateShopEquipment();
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  const count = 4 + Math.floor(Math.random() * 3);
+  return shuffled.slice(0, Math.min(count, shuffled.length));
+}
 import { rollDrop } from '../utils/drops';
 
 export type StatPointTarget = ElementType | 'baseDamage' | 'baseDefense';
@@ -12,8 +20,8 @@ export type GameAction =
   | { type: 'START_BATTLE'; opponentDef: OpponentDef }
   | { type: 'BATTLE_VICTORY'; finalBattleState: BattleState; goldSeed: number }
   | { type: 'BATTLE_DEFEAT' }
-  | { type: 'CHOOSE_REWARD'; reward: RewardOption }
-  | { type: 'GO_TO_SHOP' }
+  | { type: 'CHOOSE_REWARD'; reward: RewardOption; shopItems?: EquipmentItem[] }
+  | { type: 'GO_TO_SHOP'; shopItems?: EquipmentItem[] }
   | { type: 'GO_TO_OPPONENT_SELECT' }
   | { type: 'BUY_SHOP_ITEM'; itemId: string }
   | { type: 'EQUIP_MOVE'; move: Move; slot: 0 | 1 | 2 | 3 }
@@ -22,7 +30,9 @@ export type GameAction =
   | { type: 'BUY_EQUIPMENT'; itemId: string }
   | { type: 'EQUIP_ITEM'; itemId: string; slot: ItemSlot }
   | { type: 'UNEQUIP_ITEM'; slot: ItemSlot }
-  | { type: 'SELL_ITEM'; itemId: string };
+  | { type: 'SELL_ITEM'; itemId: string }
+  | { type: 'INTERACTION_CHAT'; opponentId: string; shopItems?: EquipmentItem[] }
+  | { type: 'INTERACTION_GIFT'; opponentId: string; giftId: number; shopItems?: EquipmentItem[] };
 
 export const DEFAULT_PLAYER: PlayerStats = {
   name: 'Hero',
@@ -52,6 +62,7 @@ export const DEFAULT_GAME_STATE: GameState = {
   selectedOpponentId: null,
   activeBattle: null,
   opponentProgress: {},
+  relationshipProgress: {},
   lastDefeatedOpponent: null,
   shopEquipment: [],
 };
@@ -147,6 +158,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const oppXpGain = calcOpponentXpGain(opponentDef, false);
       const oppXpResult = applyXp(oppProgress.level, oppProgress.xp, oppXpGain);
 
+      // Player gains +30 relationship XP with the defeated opponent
+      const relProgress = getRelationshipProgress(state.relationshipProgress, opponentDef.id);
+      const newRelProgress = applyRelXp(relProgress, 30);
+
       return {
         ...state,
         screen: 'reward',
@@ -158,6 +173,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         opponentProgress: {
           ...state.opponentProgress,
           [opponentDef.id]: { level: oppXpResult.level, xp: oppXpResult.xp },
+        },
+        relationshipProgress: {
+          ...state.relationshipProgress,
+          [opponentDef.id]: newRelProgress,
         },
       };
     }
@@ -201,7 +220,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       let player = { ...state.player };
 
       if (reward.type === 'cinematic') {
-        return { ...state, pendingRewards: [], screen: 'shop', shopEquipment: generateShopEquipment() };
+        return { ...state, pendingRewards: [], screen: 'shop', shopEquipment: pickShopEquipment(action.shopItems) };
       }
 
       if (reward.type === 'loot' && reward.gold != null) {
@@ -234,12 +253,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         player,
         pendingRewards: state.pendingRewards.filter(r => r !== reward),
         screen: 'shop',
-        shopEquipment: generateShopEquipment(),
+        shopEquipment: pickShopEquipment(action.shopItems),
       };
     }
 
     case 'GO_TO_SHOP': {
-      return { ...state, screen: 'shop', pendingRewards: [], shopEquipment: generateShopEquipment() };
+      return { ...state, screen: 'shop', pendingRewards: [], shopEquipment: pickShopEquipment(action.shopItems) };
     }
 
     case 'GO_TO_OPPONENT_SELECT': {
@@ -397,6 +416,35 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           gold: state.player.gold + sellValue,
           inventory: state.player.inventory.filter(i => i.id !== itemId),
         },
+      };
+    }
+
+    case 'INTERACTION_CHAT': {
+      const rel = getRelationshipProgress(state.relationshipProgress, action.opponentId);
+      const updated = applyRelXp(rel, 15);
+      return {
+        ...state,
+        screen: 'shop',
+        pendingRewards: [],
+        shopEquipment: pickShopEquipment(action.shopItems),
+        relationshipProgress: { ...state.relationshipProgress, [action.opponentId]: updated },
+      };
+    }
+
+    case 'INTERACTION_GIFT': {
+      const opponent = state.lastDefeatedOpponent;
+      const gift = opponent?.gifts?.find(g => g.id === action.giftId);
+      if (!gift) return state;
+      if (state.player.gold < gift.gold) return state;
+      const rel = getRelationshipProgress(state.relationshipProgress, action.opponentId);
+      const updated = applyRelXp(rel, gift.exp);
+      return {
+        ...state,
+        screen: 'shop',
+        pendingRewards: [],
+        shopEquipment: pickShopEquipment(action.shopItems),
+        player: { ...state.player, gold: state.player.gold - gift.gold },
+        relationshipProgress: { ...state.relationshipProgress, [action.opponentId]: updated },
       };
     }
 

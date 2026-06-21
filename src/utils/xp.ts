@@ -1,4 +1,4 @@
-import type { OpponentDef, OpponentProgress } from '../types';
+import type { OpponentDef, OpponentProgress, RelationshipProgress } from '../types';
 
 /** XP required to reach the next level (from current level). */
 export function xpToNextLevel(level: number): number {
@@ -44,6 +44,37 @@ export function calcPlayerXpGain(opponent: OpponentDef, won: boolean): number {
 export function calcOpponentXpGain(opponent: OpponentDef, opponentWon: boolean): number {
   return opponentWon ? opponent.level * 40 : opponent.level * 5;
 }
+
+// ─── Relationship helpers ─────────────────────────────────────────────────────
+
+/** XP required to advance from the given relationship level to the next. */
+export function relXpToNextLevel(level: number): number {
+  return (level + 1) * 100;
+}
+
+/** Get current relationship progress or default (level 0, 0 xp). */
+export function getRelationshipProgress(
+  relationshipProgress: Record<string, RelationshipProgress>,
+  opponentId: string,
+): RelationshipProgress {
+  return relationshipProgress[opponentId] ?? { level: 0, xp: 0 };
+}
+
+/** Apply an XP gain to a relationship progress, handling level-ups. */
+export function applyRelXp(
+  current: RelationshipProgress,
+  xpGain: number,
+): RelationshipProgress {
+  let level = current.level;
+  let xp = current.xp + xpGain;
+  while (xp >= relXpToNextLevel(level)) {
+    xp -= relXpToNextLevel(level);
+    level += 1;
+  }
+  return { level, xp };
+}
+
+// ─── Opponent progress helpers ────────────────────────────────────────────────
 
 /** Get current opponent progress or sensible default. */
 export function getOpponentProgress(

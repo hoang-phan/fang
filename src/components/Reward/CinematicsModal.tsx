@@ -5,9 +5,10 @@ interface CinematicsModalProps {
   slideIndex: number;
   visible: boolean;
   handleCinematicClose: () => void;
+  onNext?: () => void;
 }
 
-export function CinematicsModal({ cinematicUrls, slideIndex, visible, handleCinematicClose }: CinematicsModalProps) {
+export function CinematicsModal({ cinematicUrls, slideIndex, visible, handleCinematicClose, onNext }: CinematicsModalProps) {
   if (cinematicUrls.length === 0) return <div />;
 
   return (
@@ -19,10 +20,11 @@ export function CinematicsModal({ cinematicUrls, slideIndex, visible, handleCine
           className="w-5/6 rounded-lg max-h-[80vh] object-contain"
           style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.5s ease-in-out' }}
         />
-        <div className="mt-6 text-center">
-          <Button onClick={handleCinematicClose}>
-            Continue → Shop
-          </Button>
+        <div className="mt-6 flex gap-3 justify-center">
+          {onNext && cinematicUrls.length > 1 && (
+            <Button variant="ghost" onClick={onNext}>Next →</Button>
+          )}
+          <Button onClick={handleCinematicClose}>Close</Button>
         </div>
       </div>
     </div>

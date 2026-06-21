@@ -54,6 +54,19 @@ export interface PlayerStats {
   equipped: EquippedItems;
 }
 
+export interface OpponentCinematic {
+  level: number;       // relationship level required to unlock (1-based)
+  url: string;         // full image URL (prefixed with API base)
+  description?: string;
+}
+
+export interface OpponentGift {
+  id: number;
+  name: string;
+  gold: number;        // cost to give
+  exp: number;         // relationship XP gained
+}
+
 export interface OpponentDef {
   id: string;
   name: string;
@@ -69,14 +82,21 @@ export interface OpponentDef {
   flavourText: string;
   level: number;            // opponent's level — determines XP rewards
   xpReward: [number, number]; // [victoryXp for player, defeatXp for player]
-  avatars?: string[];       // up to 5 public-folder paths, one per opponent level
-  cinematics?: string[];    // up to 5 public-folder paths
+  avatars?: string[];       // full image URLs, one per opponent level
+  cinematics?: OpponentCinematic[]; // dynamic — any number, ordered by level
+  gifts?: OpponentGift[];           // dynamic — any number of gift options
 }
 
 // Tracks opponent XP progress (they gain XP too — persisted across sessions)
 export interface OpponentProgress {
   level: number;
   xp: number;
+}
+
+// Tracks relationship progress with a specific opponent
+export interface RelationshipProgress {
+  level: number; // relationship level (starts at 0)
+  xp: number;    // XP within the current relationship level
 }
 
 export type BattlePhase =
@@ -142,6 +162,7 @@ export interface GameState {
   selectedOpponentId: string | null;
   activeBattle: BattleState | null;
   opponentProgress: Record<string, OpponentProgress>; // xp/level per opponent id
+  relationshipProgress: Record<string, RelationshipProgress>; // relationship level/xp per opponent id
   lastDefeatedOpponent: OpponentDef | null;
   shopEquipment: EquipmentItem[];
 }

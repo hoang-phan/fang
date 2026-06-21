@@ -1,92 +1,277 @@
-import { useState, useEffect, type Dispatch } from 'react';
-import type { GameState, RewardOption } from '../../types';
+import { useState, type Dispatch } from 'react';
+import type { GameState, RewardOption, EquipmentItem } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
-import { Button } from '../ui/Button';
 import { GoldDisplay } from '../ui/GoldDisplay';
 import { CinematicsModal } from '../Reward/CinematicsModal';
 import { RewardOptionCard } from '../Reward/RewardOption';
+import { getRelationshipProgress, relXpToNextLevel } from '../../utils/xp';
 
 interface RewardScreenProps {
   gameState: GameState;
   dispatch: Dispatch<GameAction>;
+  shopItems?: EquipmentItem[];
 }
 
+type MenuView = 'main' | 'skills' | 'interactions' | 'gifts' | 'cinematics';
 
-export function RewardScreen({ gameState, dispatch }: RewardScreenProps) {
-  const { pendingRewards, player } = gameState;
+export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenProps) {
+  const { pendingRewards, player, lastDefeatedOpponent, relationshipProgress } = gameState;
+  const [menuView, setMenuView] = useState<MenuView>('main');
   const [cinematicUrls, setCinematicUrls] = useState<string[]>([]);
-  const [pendingCinematicReward, setPendingCinematicReward] = useState<RewardOption | null>(null);
   const [slideIndex, setSlideIndex] = useState(0);
   const [visible, setVisible] = useState(true);
 
-  useEffect(() => {
-    if (cinematicUrls.length <= 1) return;
-    const cycle = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => {
-        setSlideIndex(i => (i + 1) % cinematicUrls.length);
-        setVisible(true);
-      }, 500);
-    }, 5000);
-    return () => clearInterval(cycle);
-  }, [cinematicUrls]);
+  const opponentId = lastDefeatedOpponent?.id ?? '';
+  const relProgress = getRelationshipProgress(relationshipProgress, opponentId);
+  const relXpNeeded = relXpToNextLevel(relProgress.level);
 
-  const handleChoose = (reward: RewardOption) => {
-    if (reward.type === 'cinematic' && reward.cinematicUrl) {
-      const urls = reward.cinematicUrl.split(',').map(u => u.trim()).filter(Boolean);
-      setCinematicUrls(urls);
-      setSlideIndex(0);
-      setVisible(true);
-      setPendingCinematicReward(reward);
-      return;
-    }
-    dispatch({ type: 'CHOOSE_REWARD', reward });
+  const skillRewards = pendingRewards.filter(r => r.type === 'learn_new' || r.type === 'upskill');
+  const lootReward = pendingRewards.find(r => r.type === 'loot');
+
+  // Cinematics: unlocked when relProgress.level >= cinematic.level - 1 (0-indexed unlock)
+  const unlockedCinematics = (lastDefeatedOpponent?.cinematics ?? []).filter(
+    c => relProgress.level >= c.level - 1
+  );
+
+  // Gifts come from the opponent's dynamic gift list
+  const availableGifts = lastDefeatedOpponent?.gifts ?? [];
+
+  const handleChooseSkill = (reward: RewardOption) => {
+    dispatch({ type: 'CHOOSE_REWARD', reward, shopItems });
+  };
+
+  const handleLoot = () => {
+    if (lootReward) dispatch({ type: 'CHOOSE_REWARD', reward: lootReward, shopItems });
+  };
+
+  const handleChat = () => {
+    dispatch({ type: 'INTERACTION_CHAT', opponentId, shopItems });
+  };
+
+  const handleGift = (giftId: number) => {
+    dispatch({ type: 'INTERACTION_GIFT', opponentId, giftId, shopItems });
+  };
+
+  const handleWatchCinematic = (url: string) => {
+    setCinematicUrls([url]);
+    setSlideIndex(0);
+    setVisible(true);
   };
 
   const handleCinematicClose = () => {
     setCinematicUrls([]);
-    if (pendingCinematicReward) {
-      dispatch({ type: 'CHOOSE_REWARD', reward: pendingCinematicReward });
-    }
-    setPendingCinematicReward(null);
+  };
+
+  const handleCycleCinematic = () => {
+    setVisible(false);
+    setTimeout(() => {
+      setSlideIndex(i => (i + 1) % cinematicUrls.length);
+      setVisible(true);
+    }, 500);
   };
 
   return (
     <div className="min-h-screen bg-theme-base flex flex-col items-center justify-center p-4 lg:p-6">
       <div className="w-full max-w-lg">
         {/* Header */}
-        <div className="text-center mb-6 lg:mb-8">
-          <div className="text-4xl lg:text-6xl mb-3 lg:mb-4">🏆</div>
+        <div className="text-center mb-6">
+          <div className="text-4xl lg:text-6xl mb-3">🏆</div>
           <h1 className="font-pixel text-accent text-base lg:text-lg mb-2">Victory!</h1>
-          <p className="text-text-muted text-sm">Choose your reward</p>
+          {lastDefeatedOpponent && (
+            <p className="text-text-muted text-sm">{lastDefeatedOpponent.name}</p>
+          )}
         </div>
 
-        {/* Player stats */}
-        <div className="flex justify-center mb-6">
+        {/* Player stats + relationship */}
+        <div className="flex items-center justify-between mb-6 gap-4">
           <GoldDisplay gold={player.gold} />
+          {lastDefeatedOpponent && (
+            <div className="flex flex-col items-end gap-1 min-w-0">
+              <span className="text-xs text-text-faint">Relationship Lv {relProgress.level}</span>
+              <div className="flex items-center gap-2">
+                <div className="w-28 h-2 bg-theme-surface rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-pink-500 rounded-full transition-all"
+                    style={{ width: `${(relProgress.xp / relXpNeeded) * 100}%` }}
+                  />
+                </div>
+                <span className="text-xs text-text-faint whitespace-nowrap">{relProgress.xp}/{relXpNeeded}</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Reward options */}
-        <div className="flex flex-col gap-4">
-          {pendingRewards.map((reward, i) => (
-            <RewardOptionCard
-              key={i}
-              reward={reward}
-              playerStats={player.stats}
-              onClick={() => handleChoose(reward)}
+        {/* Back button for submenus */}
+        {menuView !== 'main' && (
+          <button
+            onClick={() => setMenuView(menuView === 'gifts' || menuView === 'cinematics' ? 'interactions' : 'main')}
+            className="mb-4 text-sm text-text-muted hover:text-text-bright flex items-center gap-1"
+          >
+            ← Back
+          </button>
+        )}
+
+        {/* Main menu */}
+        {menuView === 'main' && (
+          <div className="flex flex-col gap-3">
+            <MenuButton
+              icon="⚔️"
+              label="Skills"
+              description={skillRewards.length > 0 ? `${skillRewards.length} option${skillRewards.length > 1 ? 's' : ''} available` : 'No skills available'}
+              disabled={skillRewards.length === 0}
+              onClick={() => setMenuView('skills')}
             />
-          ))}
-        </div>
+            <MenuButton
+              icon="💬"
+              label="Interactions"
+              description="Chat, give gifts, or watch cinematics"
+              onClick={() => setMenuView('interactions')}
+            />
+            <MenuButton
+              icon="💰"
+              label="Loot"
+              description={lootReward ? lootReward.description : 'No loot available'}
+              disabled={!lootReward}
+              onClick={handleLoot}
+              accent="gold"
+            />
+            <button
+              onClick={() => dispatch({ type: 'GO_TO_SHOP' })}
+              className="text-sm text-text-faint hover:text-text-muted text-center mt-2 py-2"
+            >
+              Skip → Shop
+            </button>
+          </div>
+        )}
 
-        {/* Skip */}
-        <div className="mt-6 text-center">
-          <Button variant="ghost" onClick={() => dispatch({ type: 'GO_TO_SHOP' })}>
-            Skip rewards → Shop
-          </Button>
-        </div>
+        {/* Skills submenu */}
+        {menuView === 'skills' && (
+          <div className="flex flex-col gap-4">
+            {skillRewards.map((reward, i) => (
+              <RewardOptionCard
+                key={i}
+                reward={reward}
+                playerStats={player.stats}
+                onClick={() => handleChooseSkill(reward)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Interactions submenu */}
+        {menuView === 'interactions' && (
+          <div className="flex flex-col gap-3">
+            <MenuButton
+              icon="💬"
+              label="Chat"
+              description="+15 relationship XP"
+              onClick={handleChat}
+              accent="pink"
+            />
+            <MenuButton
+              icon="🎁"
+              label="Gift"
+              description="Give a gift to deepen your bond"
+              onClick={() => setMenuView('gifts')}
+              accent="pink"
+            />
+            <MenuButton
+              icon="🎬"
+              label="Watch Cinematics"
+              description={unlockedCinematics.length > 0 ? `${unlockedCinematics.length} unlocked` : 'None unlocked yet'}
+              disabled={unlockedCinematics.length === 0}
+              onClick={() => setMenuView('cinematics')}
+              accent="pink"
+            />
+          </div>
+        )}
+
+        {/* Gifts submenu */}
+        {menuView === 'gifts' && (
+          <div className="flex flex-col gap-3">
+            {availableGifts.length === 0 && (
+              <p className="text-text-muted text-sm text-center py-4">No gifts available.</p>
+            )}
+            {availableGifts.map((gift) => {
+              const canAfford = player.gold >= gift.gold;
+              return (
+                <MenuButton
+                  key={gift.id}
+                  icon="🎁"
+                  label={gift.name}
+                  description={`${gift.gold}g → +${gift.exp} relationship XP`}
+                  disabled={!canAfford}
+                  disabledReason={!canAfford ? 'Not enough gold' : undefined}
+                  onClick={() => handleGift(gift.id)}
+                  accent="pink"
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {/* Cinematics submenu */}
+        {menuView === 'cinematics' && (
+          <div className="flex flex-col gap-3">
+            {unlockedCinematics.map((c, i) => (
+              <MenuButton
+                key={c.level}
+                icon="🎬"
+                label={`Scene ${i + 1}`}
+                description={c.description ?? `Relationship level ${c.level - 1}`}
+                onClick={() => handleWatchCinematic(c.url)}
+                accent="pink"
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      <CinematicsModal cinematicUrls={cinematicUrls} slideIndex={slideIndex} visible={visible} handleCinematicClose={handleCinematicClose} />
+      <CinematicsModal
+        cinematicUrls={cinematicUrls}
+        slideIndex={slideIndex}
+        visible={visible}
+        handleCinematicClose={handleCinematicClose}
+        onNext={cinematicUrls.length > 1 ? handleCycleCinematic : undefined}
+      />
     </div>
+  );
+}
+
+interface MenuButtonProps {
+  icon: string;
+  label: string;
+  description: string;
+  disabled?: boolean;
+  disabledReason?: string;
+  onClick: () => void;
+  accent?: 'gold' | 'pink';
+}
+
+function MenuButton({ icon, label, description, disabled, disabledReason, onClick, accent }: MenuButtonProps) {
+  const accentClass = accent === 'gold'
+    ? 'border-yellow-600 bg-yellow-900/20 hover:bg-yellow-900/40'
+    : accent === 'pink'
+    ? 'border-pink-600 bg-pink-900/20 hover:bg-pink-900/40'
+    : 'border-border-strong bg-theme-surface/60 hover:border-text-faint hover:bg-theme-surface';
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        w-full text-left rounded-xl border p-4 transition-all duration-150 flex items-center gap-4
+        ${disabled ? 'opacity-40 cursor-not-allowed border-border-mid bg-theme-surface/30' : `cursor-pointer ${accentClass}`}
+      `}
+    >
+      <span className="text-3xl shrink-0">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <div className="font-bold text-text-bright text-sm">{label}</div>
+        <div className="text-xs text-text-muted mt-0.5">
+          {disabled && disabledReason ? disabledReason : description}
+        </div>
+      </div>
+      {!disabled && <span className="text-text-muted text-lg shrink-0">▶</span>}
+    </button>
   );
 }
