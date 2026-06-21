@@ -11,6 +11,10 @@ function prefixConversations(conversations?: Conversation[]): Conversation[] | u
   return conversations?.map(conv => ({
     ...conv,
     backgroundUrl: conv.backgroundUrl ? prefixUrl(conv.backgroundUrl) : undefined,
+    chats: conv.chats.map(chat => ({
+      ...chat,
+      sprites: chat.sprites.map(s => ({ ...s, url: prefixUrl(s.url) })),
+    })),
   }));
 }
 

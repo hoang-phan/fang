@@ -54,10 +54,19 @@ export interface PlayerStats {
   equipped: EquippedItems;
 }
 
+export interface Sprite {
+  url: string;
+  x: number | null;
+  y: number | null;
+  width: number | null;
+  height: number | null;
+}
+
 export interface Chat {
-  avatar: string;    // 'hero' | 'opponent' | any speaker identifier
+  role: 'hero' | 'opponent' | 'other';
   position: number;
   content: string;
+  sprites: Sprite[];
 }
 
 export interface Conversation {

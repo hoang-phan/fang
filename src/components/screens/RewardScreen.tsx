@@ -5,7 +5,7 @@ import { GoldDisplay } from '../ui/GoldDisplay';
 import { CinematicsModal } from '../Reward/CinematicsModal';
 import { ConversationOverlay } from '../Reward/ConversationOverlay';
 import { RewardOptionCard } from '../Reward/RewardOption';
-import { getRelationshipProgress, relXpToNextLevel, getOpponentProgress } from '../../utils/xp';
+import { getRelationshipProgress, relXpToNextLevel } from '../../utils/xp';
 
 interface RewardScreenProps {
   gameState: GameState;
@@ -16,7 +16,7 @@ interface RewardScreenProps {
 type MenuView = 'main' | 'skills' | 'interactions' | 'gifts' | 'cinematics';
 
 export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenProps) {
-  const { pendingRewards, player, lastDefeatedOpponent, relationshipProgress, opponentProgress } = gameState;
+  const { pendingRewards, player, lastDefeatedOpponent, relationshipProgress } = gameState;
   const [menuView, setMenuView] = useState<MenuView>('main');
   const [activeCinematic, setActiveCinematic] = useState<OpponentCinematic | null>(null);
   const [pendingConversation, setPendingConversation] = useState<Conversation[] | null>(null);
@@ -25,11 +25,6 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
   const opponentId = lastDefeatedOpponent?.id ?? '';
   const relProgress = getRelationshipProgress(relationshipProgress, opponentId);
   const relXpNeeded = relXpToNextLevel(relProgress.level);
-
-  // Avatar URL — same logic as CombatantCard: level-indexed, 0-based
-  const oppProgress = getOpponentProgress(opponentProgress, opponentId, lastDefeatedOpponent?.level ?? 1);
-  const avatarIndex = Math.min(oppProgress.level, 5) - 1;
-  const opponentAvatarUrl = lastDefeatedOpponent?.avatars?.[avatarIndex];
 
   const skillRewards = pendingRewards.filter(r => r.type === 'learn_new' || r.type === 'upskill');
   const lootReward = pendingRewards.find(r => r.type === 'loot');
@@ -240,7 +235,6 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
       {/* Cinematic overlay */}
       <CinematicsModal
         cinematic={activeCinematic}
-        opponentAvatarUrl={opponentAvatarUrl}
         opponentSprite={lastDefeatedOpponent?.sprite}
         opponentName={lastDefeatedOpponent?.name ?? ''}
         onClose={() => setActiveCinematic(null)}
@@ -250,7 +244,6 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
       {pendingConversation && (
         <ConversationOverlay
           conversations={pendingConversation}
-          opponentAvatarUrl={opponentAvatarUrl}
           opponentSprite={lastDefeatedOpponent?.sprite}
           opponentName={lastDefeatedOpponent?.name ?? ''}
           onComplete={handleConversationComplete}

@@ -1,11 +1,8 @@
 import type { Conversation } from '../../types';
 import { useConversationAdvance } from './useConversationAdvance';
 
-export const API_BASE = 'http://localhost:3000';
-
 interface ConversationOverlayProps {
   conversations: Conversation[];
-  opponentAvatarUrl?: string;
   opponentSprite?: string;
   opponentName: string;
   onComplete: () => void;
@@ -13,7 +10,6 @@ interface ConversationOverlayProps {
 
 export function ConversationOverlay({
   conversations,
-  opponentAvatarUrl,
   opponentSprite,
   opponentName,
   onComplete,
@@ -25,7 +21,7 @@ export function ConversationOverlay({
     return null;
   }
 
-  const isHero = current.avatar === 'hero';
+  const isHero = current.role === 'hero';
   const speakerName = isHero ? 'You' : opponentName;
 
   return (
@@ -42,21 +38,31 @@ export function ConversationOverlay({
         />
       )}
 
-      <div className="relative flex-1" />
-
-      <div className="relative shrink-0 pb-1 px-4 flex flex-col items-start mx-auto w-full">
-        {current.avatar && !isHero ? (
-          <img
-            src={`${API_BASE}/${current.avatar}`}
-            alt={opponentName}
-            className="absolute bottom-[150px] left-0 max-h-[600px] object-contain"
-          />
+      <div className="relative flex-1 overflow-hidden">
+        {current.sprites.length > 0 ? (
+          current.sprites.map((sprite, i) => (
+            <img
+              key={i}
+              src={sprite.url}
+              alt=""
+              style={{
+                position: 'absolute',
+                bottom: sprite.y ?? 0,
+                left: `calc(50% + ${sprite.x ?? 0}px - ${(sprite.width ?? 0) / 2}px)`,
+                width: sprite.width ?? undefined,
+                height: sprite.height ?? undefined,
+                objectFit: 'contain',
+              }}
+            />
+          ))
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="w-full h-full flex items-end justify-center pb-4">
             <span className="text-4xl">{opponentSprite ?? '❓'}</span>
           </div>
         )}
+      </div>
 
+      <div className="relative shrink-0 pb-1 px-4 flex flex-col items-start mx-auto w-full">
         <div
           className="w-full rounded-xl rounded-tl-none border border-border-mid bg-theme-dialogue p-5 shadow-lg"
           style={{ minHeight: '140px' }}
