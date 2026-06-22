@@ -24,6 +24,16 @@ export function ConversationOverlay({
   const isHero = current.role === 'hero';
   const speakerName = isHero ? 'You' : (current.role === 'opponent' ? opponentName : null);
 
+  const getContrastColor = (color: string) => {
+    const rgb = color.match(/\w+/g);
+    if (!rgb) return '#000000';
+    const r = parseInt(rgb[0]);
+    const g = parseInt(rgb[1]);
+    const b = parseInt(rgb[2]);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 128 ? '#000000' : '#ffffff';
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col cursor-pointer select-none transition-colors duration-500"
@@ -64,7 +74,11 @@ export function ConversationOverlay({
 
       {current.content === '(...)' ? (
         <div className="relative shrink-0 pb-4 px-4 flex justify-end mx-auto w-full">
-          <button onClick={e => { e.stopPropagation(); advance(); }} className="text-xs text-text-faint hover:text-text-muted transition-colors">
+          <button
+            onClick={e => { e.stopPropagation(); advance(); }}
+            className="text-xs transition-colors"
+            style={{ color: getContrastColor(currentConv.backgroundColor ?? '#1a232c') }}
+          >
             {isVeryLast ? 'Close ▼' : 'Continue ▼'}
           </button>
         </div>
