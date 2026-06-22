@@ -48,7 +48,7 @@ export const DEFAULT_PLAYER: PlayerStats = {
   xp: 0,
   statPoints: 0,
   stats: {},
-  baseDamage: 0,
+  baseDamage: 50,
   baseDefense: 0,
   inventory: [],
   equipped: {},
