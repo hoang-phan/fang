@@ -6,10 +6,11 @@ interface CinematicsModalProps {
   cinematic: OpponentCinematic | null;
   opponentSprite?: string;
   opponentName: string;
+  heroName?: string;
   onClose: () => void;
 }
 
-export function CinematicsModal({ cinematic, opponentSprite, opponentName, onClose }: CinematicsModalProps) {
+export function CinematicsModal({ cinematic, opponentSprite, opponentName, heroName, onClose }: CinematicsModalProps) {
   if (!cinematic) return null;
 
   const conversations = cinematic.conversations ?? [];
@@ -33,6 +34,7 @@ export function CinematicsModal({ cinematic, opponentSprite, opponentName, onClo
       key={cinematic.level}
       conversations={conversations}
       opponentName={opponentName}
+      heroName={heroName}
       onComplete={onClose}
     />
   );

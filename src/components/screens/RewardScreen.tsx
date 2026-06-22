@@ -237,6 +237,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
         cinematic={activeCinematic}
         opponentSprite={lastDefeatedOpponent?.sprite}
         opponentName={lastDefeatedOpponent?.name ?? ''}
+        heroName={player.name}
         onClose={() => setActiveCinematic(null)}
       />
 
@@ -245,6 +246,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
         <ConversationOverlay
           conversations={pendingConversation}
           opponentName={lastDefeatedOpponent?.name ?? ''}
+          heroName={player.name}
           onComplete={handleConversationComplete}
         />
       )}

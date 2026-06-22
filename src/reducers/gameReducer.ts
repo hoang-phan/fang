@@ -16,6 +16,7 @@ import { rollDrop } from '../utils/drops';
 export type StatPointTarget = ElementType | 'baseDamage' | 'baseDefense';
 
 export type GameAction =
+  | { type: 'SET_PLAYER_NAME'; name: string }
   | { type: 'SELECT_OPPONENT'; opponentId: string }
   | { type: 'START_BATTLE'; opponentDef: OpponentDef }
   | { type: 'BATTLE_VICTORY'; finalBattleState: BattleState; goldSeed: number }
@@ -55,7 +56,7 @@ export const DEFAULT_PLAYER: PlayerStats = {
 };
 
 export const DEFAULT_GAME_STATE: GameState = {
-  screen: 'opponent_select',
+  screen: 'name_entry',
   player: DEFAULT_PLAYER,
   defeatedOpponents: [],
   pendingRewards: [],
@@ -73,6 +74,14 @@ function restorePlayer(player: PlayerStats): PlayerStats {
 
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
+    case 'SET_PLAYER_NAME': {
+      return {
+        ...state,
+        screen: 'opponent_select',
+        player: { ...state.player, name: action.name.trim() || state.player.name },
+      };
+    }
+
     case 'SELECT_OPPONENT': {
       return { ...state, selectedOpponentId: action.opponentId };
     }

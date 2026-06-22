@@ -167,7 +167,7 @@ export interface BattleState {
   mpRegenPerTurn: number;   // from equipment mpRegen enhancements
 }
 
-export type GameScreen = 'opponent_select' | 'battle' | 'reward' | 'shop';
+export type GameScreen = 'name_entry' | 'opponent_select' | 'battle' | 'reward' | 'shop';
 
 export interface RewardOption {
   type: 'learn_new' | 'upskill' | 'loot' | 'cinematic';

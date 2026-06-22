@@ -6,11 +6,12 @@ import { getContrastColor } from '../../utils/color';
 interface ConversationOverlayProps {
   conversations: Conversation[];
   opponentName: string;
+  heroName?: string;
   onComplete: () => void;
 }
 
-function speakerLabel(role: string, opponentName: string): string | null {
-  if (role === 'hero') return 'You';
+function speakerLabel(role: string, opponentName: string, heroName: string): string | null {
+  if (role === 'hero') return heroName;
   if (role === 'opponent') return opponentName;
   return null;
 }
@@ -18,6 +19,7 @@ function speakerLabel(role: string, opponentName: string): string | null {
 export function ConversationOverlay({
   conversations,
   opponentName,
+  heroName = 'You',
   onComplete,
 }: ConversationOverlayProps) {
   const { currentConv, current, isVeryLast, advance, bgFading, onBgFadeOutEnd } = useConversationAdvance(conversations, onComplete);
@@ -30,7 +32,7 @@ export function ConversationOverlay({
   const isHero = current.role === 'hero';
   const isDialogueMode = current.content !== '(...)';
   const advanceLabel = isVeryLast ? 'Close ▼' : 'Continue ▼';
-  const speaker = speakerLabel(current.role, opponentName);
+  const speaker = speakerLabel(current.role, opponentName, heroName);
 
   return (
     <div
@@ -66,7 +68,7 @@ export function ConversationOverlay({
                   {speaker}
                 </div>
               )}
-              <p className="text-text-faint text-sm leading-relaxed flex-1">{current.content}</p>
+              <p className="text-text-faint text-sm leading-relaxed flex-1">{current.content.replaceAll('{{PLAYER}}', heroName)}</p>
               <div className="flex justify-end">
                 <button onClick={advance} className="text-xs text-text-faint hover:text-text-muted transition-colors">
                   {advanceLabel}

@@ -1,5 +1,6 @@
 import { useGame } from './hooks/useGame';
 import { useOpponents, useItems } from './hooks/useOpponents';
+import { NameEntryScreen } from './components/screens/NameEntryScreen';
 import { OpponentSelectScreen } from './components/screens/OpponentSelectScreen';
 import { BattleScreen } from './components/screens/BattleScreen';
 import { RewardScreen } from './components/screens/RewardScreen';
@@ -19,6 +20,9 @@ function App() {
   }
 
   switch (state.screen) {
+    case 'name_entry':
+      return <NameEntryScreen dispatch={dispatch} />;
+
     case 'battle':
       if (!state.activeBattle) return null;
       return (

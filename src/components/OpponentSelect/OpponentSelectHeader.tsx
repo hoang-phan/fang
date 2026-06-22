@@ -1,11 +1,11 @@
 import type { Dispatch } from 'react';
-import type { Player } from '../../types';
+import type { PlayerStats } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
 import { GoldDisplay } from '../ui/GoldDisplay';
 import { Button } from '../ui/Button';
 
 interface OpponentSelectHeaderProps {
-  player: Player;
+  player: PlayerStats;
   dispatch: Dispatch<GameAction>;
 }
 
