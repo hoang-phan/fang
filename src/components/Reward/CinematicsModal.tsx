@@ -32,7 +32,6 @@ export function CinematicsModal({ cinematic, opponentSprite, opponentName, onClo
     <ConversationOverlay
       key={cinematic.level}
       conversations={conversations}
-      opponentSprite={opponentSprite}
       opponentName={opponentName}
       onComplete={onClose}
     />

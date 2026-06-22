@@ -244,7 +244,6 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
       {pendingConversation && (
         <ConversationOverlay
           conversations={pendingConversation}
-          opponentSprite={lastDefeatedOpponent?.sprite}
           opponentName={lastDefeatedOpponent?.name ?? ''}
           onComplete={handleConversationComplete}
         />
