@@ -72,8 +72,9 @@ export interface Chat {
 export interface Conversation {
   id: number;
   chats: Chat[];
-  backgroundUrl?: string; // background image for the conversation scene
-  position?: number;      // display order (cinematics and gifts only)
+  backgroundUrl?: string;   // background image for the conversation scene
+  backgroundColor?: string; // background color for the conversation scene
+  position?: number;        // display order (cinematics and gifts only)
 }
 
 export interface OpponentCinematic {

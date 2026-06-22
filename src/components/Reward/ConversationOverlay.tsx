@@ -14,7 +14,7 @@ export function ConversationOverlay({
   opponentName,
   onComplete,
 }: ConversationOverlayProps) {
-  const { currentConv, current, isVeryLast, advance } = useConversationAdvance(conversations, onComplete);
+  const { currentConv, current, isVeryLast, advance, bgFading, onBgFadeOutEnd } = useConversationAdvance(conversations, onComplete);
 
   if (conversations.length === 0) {
     onComplete();
@@ -26,20 +26,23 @@ export function ConversationOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col cursor-pointer select-none bg-[#1a232c]"
+      className="fixed inset-0 z-50 flex flex-col cursor-pointer select-none transition-colors duration-500"
+      style={{ backgroundColor: currentConv.backgroundColor ?? '#1a232c' }}
       onClick={advance}
     >
       {currentConv.backgroundUrl && (
         <img
           src={currentConv.backgroundUrl}
           alt="background"
-          className="absolute inset-0 w-full h-full object-contain"
+          className="absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
+          style={{ opacity: bgFading ? 0 : 1 }}
+          onTransitionEnd={bgFading ? onBgFadeOutEnd : undefined}
         />
       )}
 
       {current.content !== '(...)' && (
         <div className="relative flex-1 overflow-hidden">
-          {!!current.sprites.length > 0 && (
+          {current.sprites.length > 0 && (
             current.sprites.map((sprite, i) => (
               <img
                 key={i}

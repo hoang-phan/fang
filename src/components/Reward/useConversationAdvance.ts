@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Conversation } from '../../types';
 
 export function useConversationAdvance(conversations: Conversation[], onComplete: () => void) {
   const [convIndex, setConvIndex] = useState(0);
   const [chatIndex, setChatIndex] = useState(0);
+  const [bgFading, setBgFading] = useState(false);
+  const pendingConvIndex = useRef<number | null>(null);
 
   const currentConv = conversations[Math.min(convIndex, conversations.length - 1)];
   const chats = currentConv?.chats ?? [];
@@ -16,12 +18,31 @@ export function useConversationAdvance(conversations: Conversation[], onComplete
     if (!isLastChat) {
       setChatIndex(i => i + 1);
     } else if (!isLastConv) {
-      setConvIndex(i => i + 1);
-      setChatIndex(0);
+      const nextConvIndex = convIndex + 1;
+      const nextConv = conversations[nextConvIndex];
+      const bgChanges = nextConv?.backgroundUrl !== currentConv?.backgroundUrl ||
+        nextConv?.backgroundColor !== currentConv?.backgroundColor;
+
+      if (bgChanges) {
+        pendingConvIndex.current = nextConvIndex;
+        setBgFading(true);
+      } else {
+        setConvIndex(nextConvIndex);
+        setChatIndex(0);
+      }
     } else {
       onComplete();
     }
   };
 
-  return { currentConv, current, isVeryLast, advance };
+  const onBgFadeOutEnd = () => {
+    if (pendingConvIndex.current !== null) {
+      setConvIndex(pendingConvIndex.current);
+      setChatIndex(0);
+      pendingConvIndex.current = null;
+      setBgFading(false);
+    }
+  };
+
+  return { currentConv, current, isVeryLast, advance, bgFading, onBgFadeOutEnd };
 }
