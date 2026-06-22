@@ -1,8 +1,7 @@
-import { useState, type Dispatch } from 'react';
+import { useState, useRef, useEffect, type Dispatch } from 'react';
 import type { GameState, RewardOption, EquipmentItem, OpponentCinematic, Conversation } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
 import { GoldDisplay } from '../ui/GoldDisplay';
-import { CinematicsModal } from '../Reward/CinematicsModal';
 import { ConversationOverlay } from '../Reward/ConversationOverlay';
 import { RewardOptionCard } from '../Reward/RewardOption';
 import { getRelationshipProgress, relXpToNextLevel } from '../../utils/xp';
@@ -15,12 +14,19 @@ interface RewardScreenProps {
 
 type MenuView = 'main' | 'skills' | 'interactions' | 'gifts' | 'cinematics';
 
+interface RewardResult {
+  icon: string;
+  title: string;
+  lines: string[];
+  onConfirm: () => void;
+}
+
 export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenProps) {
   const { pendingRewards, player, lastDefeatedOpponent, relationshipProgress } = gameState;
   const [menuView, setMenuView] = useState<MenuView>('main');
-  const [activeCinematic, setActiveCinematic] = useState<OpponentCinematic | null>(null);
   const [pendingConversation, setPendingConversation] = useState<Conversation[] | null>(null);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [rewardResult, setRewardResult] = useState<RewardResult | null>(null);
 
   const opponentId = lastDefeatedOpponent?.id ?? '';
   const relProgress = getRelationshipProgress(relationshipProgress, opponentId);
@@ -36,36 +42,95 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
   const availableGifts = lastDefeatedOpponent?.gifts ?? [];
 
   const handleChooseSkill = (reward: RewardOption) => {
-    dispatch({ type: 'CHOOSE_REWARD', reward, shopItems });
+    const isNew = reward.type === 'learn_new';
+    const moveName = reward.move?.name ?? reward.label;
+    const moveIcon = reward.move?.icon ?? '⚔️';
+    setRewardResult({
+      icon: moveIcon,
+      title: isNew ? 'New Skill Learned!' : 'Skill Upgraded!',
+      lines: [
+        isNew ? `You learned ${moveName}!` : `${moveName} leveled up to Lv${(reward.move?.level ?? 1) + 1}!`,
+        reward.description,
+      ],
+      onConfirm: () => dispatch({ type: 'CHOOSE_REWARD', reward, shopItems }),
+    });
   };
 
   const handleLoot = () => {
-    if (lootReward) dispatch({ type: 'CHOOSE_REWARD', reward: lootReward, shopItems });
+    if (!lootReward) return;
+    const lines: string[] = [lootReward.description];
+    if (lootReward.droppedItem) {
+      lines.push(`Found: ${lootReward.droppedItem.icon} ${lootReward.droppedItem.name}!`);
+    }
+    setRewardResult({
+      icon: '💰',
+      title: 'Loot Claimed!',
+      lines,
+      onConfirm: () => dispatch({ type: 'CHOOSE_REWARD', reward: lootReward, shopItems }),
+    });
   };
 
   const handleChat = () => {
     const conversations = lastDefeatedOpponent?.conversations ?? [];
+    const doDispatch = () => dispatch({ type: 'INTERACTION_CHAT', opponentId, shopItems });
+    const showResult = () => setRewardResult({
+      icon: '💬',
+      title: 'Had a Chat!',
+      lines: [`You talked with ${lastDefeatedOpponent?.name ?? 'them'}.`, '+15 Relationship XP'],
+      onConfirm: doDispatch,
+    });
+
     if (conversations.length > 0) {
       const picked = conversations[Math.floor(Math.random() * conversations.length)];
       setPendingConversation([picked]);
-      setPendingAction(() => () => dispatch({ type: 'INTERACTION_CHAT', opponentId, shopItems }));
+      setPendingAction(() => showResult);
     } else {
-      dispatch({ type: 'INTERACTION_CHAT', opponentId, shopItems });
+      showResult();
     }
   };
 
   const handleGift = (giftId: number) => {
     const gift = availableGifts.find(g => g.id === giftId);
-    if (gift?.conversations && gift.conversations.length > 0) {
+    if (!gift) return;
+    const doDispatch = () => dispatch({ type: 'INTERACTION_GIFT', opponentId, giftId, shopItems });
+    const showResult = () => setRewardResult({
+      icon: '🎁',
+      title: 'Gift Given!',
+      lines: [
+        `You gave ${gift.name} to ${lastDefeatedOpponent?.name ?? 'them'}.`,
+        `-${gift.gold}g  ·  +${gift.exp} Relationship XP`,
+      ],
+      onConfirm: doDispatch,
+    });
+
+    if (gift.conversations && gift.conversations.length > 0) {
       setPendingConversation(gift.conversations);
-      setPendingAction(() => () => dispatch({ type: 'INTERACTION_GIFT', opponentId, giftId, shopItems }));
+      setPendingAction(() => showResult);
     } else {
-      dispatch({ type: 'INTERACTION_GIFT', opponentId, giftId, shopItems });
+      showResult();
     }
   };
 
   const handleWatchCinematic = (cinematic: OpponentCinematic) => {
-    setActiveCinematic(cinematic);
+    const conversations = cinematic.conversations ?? [];
+    const relationshipGain = cinematic.relationshipGain ?? 0;
+    const doDispatch = () => dispatch({ type: 'INTERACTION_CINEMATIC', opponentId, relationshipGain, shopItems });
+    const showResult = () => setRewardResult({
+      icon: '🎬',
+      title: 'Cinematic Watched!',
+      lines: [
+        cinematic.description ?? `Scene ${cinematic.level}`,
+        relationshipGain > 0 ? `+${relationshipGain} Relationship XP` : 'Bond deepened.',
+      ],
+      onConfirm: doDispatch,
+    });
+
+    if (conversations.length > 0) {
+      setPendingConversation(conversations);
+      setPendingAction(() => showResult);
+    } else {
+      showResult();
+    }
   };
 
   const handleConversationComplete = () => {
@@ -232,16 +297,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
         )}
       </div>
 
-      {/* Cinematic overlay */}
-      <CinematicsModal
-        cinematic={activeCinematic}
-        opponentSprite={lastDefeatedOpponent?.sprite}
-        opponentName={lastDefeatedOpponent?.name ?? ''}
-        heroName={player.name}
-        onClose={() => setActiveCinematic(null)}
-      />
-
-      {/* Conversation overlay (chat / gift) */}
+      {/* Conversation overlay (chat / gift / cinematics) */}
       {pendingConversation && (
         <ConversationOverlay
           conversations={pendingConversation}
@@ -250,9 +306,140 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
           onComplete={handleConversationComplete}
         />
       )}
+
+      {/* Reward result celebration modal */}
+      {rewardResult && (
+        <RewardCelebrationModal
+          result={rewardResult}
+          onClose={() => setRewardResult(null)}
+        />
+      )}
     </div>
   );
 }
+
+// ─── Reward Celebration Modal ──────────────────────────────────────────────────
+
+const CONFETTI_COLORS = ['#f59e0b', '#ec4899', '#8b5cf6', '#10b981', '#3b82f6', '#f97316'];
+const CONFETTI_COUNT = 48;
+
+interface ConfettiPiece {
+  id: number;
+  x: number;
+  color: string;
+  delay: number;
+  size: number;
+  rotation: number;
+  shape: 'rect' | 'circle';
+}
+
+function generateConfetti(): ConfettiPiece[] {
+  return Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    delay: Math.random() * 0.6,
+    size: 6 + Math.random() * 8,
+    rotation: Math.random() * 360,
+    shape: Math.random() > 0.5 ? 'rect' : 'circle',
+  }));
+}
+
+interface RewardCelebrationModalProps {
+  result: RewardResult;
+  onClose: () => void;
+}
+
+function RewardCelebrationModal({ result, onClose }: RewardCelebrationModalProps) {
+  const [pieces] = useState<ConfettiPiece[]>(generateConfetti);
+  const [visible, setVisible] = useState(false);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setVisible(true));
+    confirmRef.current?.focus();
+    return () => cancelAnimationFrame(t);
+  }, []);
+
+  const handleConfirm = () => {
+    result.onConfirm();
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{
+        background: 'rgba(0,0,0,0.75)',
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 0.2s',
+      }}
+      onClick={handleConfirm}
+    >
+      {/* Confetti */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {pieces.map(p => (
+          <div
+            key={p.id}
+            style={{
+              position: 'absolute',
+              left: `${p.x}%`,
+              top: visible ? '110%' : '-10%',
+              width: p.shape === 'rect' ? p.size : p.size,
+              height: p.shape === 'rect' ? p.size * 0.5 : p.size,
+              borderRadius: p.shape === 'circle' ? '50%' : '2px',
+              background: p.color,
+              transform: `rotate(${p.rotation}deg)`,
+              transition: `top ${1.2 + p.delay}s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${p.delay}s`,
+              opacity: 0.9,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Modal card */}
+      <div
+        className="relative z-10 bg-theme-raised border border-border-strong rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl"
+        style={{
+          transform: visible ? 'scale(1) translateY(0)' : 'scale(0.85) translateY(20px)',
+          transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div
+          className="text-6xl mb-4"
+          style={{
+            transform: visible ? 'scale(1) rotate(0deg)' : 'scale(0) rotate(-30deg)',
+            transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s',
+            display: 'inline-block',
+          }}
+        >
+          {result.icon}
+        </div>
+
+        <h2 className="font-pixel text-accent text-sm mb-4">{result.title}</h2>
+
+        <div className="flex flex-col gap-1 mb-6">
+          {result.lines.map((line, i) => (
+            <p key={i} className={i === 0 ? 'text-text-bright text-sm font-semibold' : 'text-text-muted text-xs'}>
+              {line}
+            </p>
+          ))}
+        </div>
+
+        <button
+          ref={confirmRef}
+          onClick={handleConfirm}
+          className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-6 rounded-xl transition-colors text-sm"
+        >
+          Continue →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Menu Button ───────────────────────────────────────────────────────────────
 
 interface MenuButtonProps {
   icon: string;

@@ -33,7 +33,8 @@ export type GameAction =
   | { type: 'UNEQUIP_ITEM'; slot: ItemSlot }
   | { type: 'SELL_ITEM'; itemId: string }
   | { type: 'INTERACTION_CHAT'; opponentId: string; shopItems?: EquipmentItem[] }
-  | { type: 'INTERACTION_GIFT'; opponentId: string; giftId: number; shopItems?: EquipmentItem[] };
+  | { type: 'INTERACTION_GIFT'; opponentId: string; giftId: number; shopItems?: EquipmentItem[] }
+  | { type: 'INTERACTION_CINEMATIC'; opponentId: string; relationshipGain: number; shopItems?: EquipmentItem[] };
 
 export const DEFAULT_PLAYER: PlayerStats = {
   name: 'Hero',
@@ -167,10 +168,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const oppXpGain = calcOpponentXpGain(opponentDef, false);
       const oppXpResult = applyXp(oppProgress.level, oppProgress.xp, oppXpGain);
 
-      // Player gains +30 relationship XP with the defeated opponent
-      const relProgress = getRelationshipProgress(state.relationshipProgress, opponentDef.id);
-      const newRelProgress = applyRelXp(relProgress, 30);
-
       return {
         ...state,
         screen: 'reward',
@@ -182,10 +179,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         opponentProgress: {
           ...state.opponentProgress,
           [opponentDef.id]: { level: oppXpResult.level, xp: oppXpResult.xp },
-        },
-        relationshipProgress: {
-          ...state.relationshipProgress,
-          [opponentDef.id]: newRelProgress,
         },
       };
     }
@@ -453,6 +446,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         pendingRewards: [],
         shopEquipment: pickShopEquipment(action.shopItems),
         player: { ...state.player, gold: state.player.gold - gift.gold },
+        relationshipProgress: { ...state.relationshipProgress, [action.opponentId]: updated },
+      };
+    }
+
+    case 'INTERACTION_CINEMATIC': {
+      const rel = getRelationshipProgress(state.relationshipProgress, action.opponentId);
+      const updated = applyRelXp(rel, action.relationshipGain);
+      return {
+        ...state,
+        screen: 'shop',
+        pendingRewards: [],
+        shopEquipment: pickShopEquipment(action.shopItems),
         relationshipProgress: { ...state.relationshipProgress, [action.opponentId]: updated },
       };
     }

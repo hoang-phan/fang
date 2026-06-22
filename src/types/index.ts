@@ -80,6 +80,7 @@ export interface Conversation {
 export interface OpponentCinematic {
   level: number;       // relationship level required to unlock (1-based)
   description?: string;
+  relationshipGain?: number; // relationship XP awarded when this cinematic is viewed
   conversations?: Conversation[];
 }
 
