@@ -16,7 +16,7 @@ export function ConversationOverlay({
 }: ConversationOverlayProps) {
   const { currentConv, current, isVeryLast, advance, bgFading, onBgFadeOutEnd } = useConversationAdvance(conversations, onComplete);
 
-  if (conversations.length === 0) {
+  if (conversations.length === 0 || !current) {
     onComplete();
     return null;
   }
@@ -62,7 +62,13 @@ export function ConversationOverlay({
         </div>
       )}
 
-      {current.content !== '(...)' && (
+      {current.content === '(...)' ? (
+        <div className="relative shrink-0 pb-4 px-4 flex justify-end mx-auto w-full">
+          <button onClick={e => { e.stopPropagation(); advance(); }} className="text-xs text-text-faint hover:text-text-muted transition-colors">
+            {isVeryLast ? 'Close ▼' : 'Continue ▼'}
+          </button>
+        </div>
+      ) : (
         <div className="relative shrink-0 pb-1 px-4 flex flex-col items-start mx-auto w-full">
           <div
             className="w-full rounded-xl rounded-tl-none border border-border-mid bg-theme-dialogue p-5 shadow-lg"
