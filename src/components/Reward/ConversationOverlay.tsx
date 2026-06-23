@@ -10,6 +10,7 @@ interface ConversationOverlayProps {
   opponentName: string;
   heroName?: string;
   onComplete: () => void;
+  onFail?: () => void;
 }
 
 function speakerLabel(role: string, opponentName: string, heroName: string): string | null {
@@ -23,6 +24,7 @@ export function ConversationOverlay({
   opponentName,
   heroName = 'You',
   onComplete,
+  onFail,
 }: ConversationOverlayProps) {
   const { currentConv, current, isVeryLast, advance, bgFading, onBgFadeOutEnd } = useConversationAdvance(conversations, onComplete);
   const minigameClickRef = useRef<(() => void) | null>(null);
@@ -30,7 +32,7 @@ export function ConversationOverlay({
 
   const handleFillChange = useCallback((fill: number) => {
     if (videoRef.current) {
-      videoRef.current.playbackRate = 0.1 + fill * 1.4;
+      videoRef.current.playbackRate = fill;
     }
   }, []);
 
@@ -78,6 +80,7 @@ export function ConversationOverlay({
           className="absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
           style={{ opacity: bgFading ? 0 : 1 }}
           onTransitionEnd={bgFading ? onBgFadeOutEnd : undefined}
+          onLoadedMetadata={() => { if (videoRef.current) videoRef.current.playbackRate = 0; }}
         />
       )}
 
@@ -91,7 +94,7 @@ export function ConversationOverlay({
         <ClickMiniGame
           description={current.content.match(/\(click-game:([^)]*)\)/)?.[1] ?? ''}
           onWin={advance}
-          onLose={advance}
+          onLose={onFail ?? advance}
           registerClick={fn => { minigameClickRef.current = fn; }}
           onFillChange={handleFillChange}
         />

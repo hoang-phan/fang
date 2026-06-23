@@ -19,6 +19,7 @@ interface RewardResult {
   title: string;
   lines: string[];
   onConfirm: () => void;
+  failed?: boolean;
 }
 
 export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenProps) {
@@ -26,6 +27,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
   const [menuView, setMenuView] = useState<MenuView>('main');
   const [pendingConversation, setPendingConversation] = useState<Conversation[] | null>(null);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [pendingFail, setPendingFail] = useState<(() => void) | null>(null);
   const [rewardResult, setRewardResult] = useState<RewardResult | null>(null);
 
   const opponentId = lastDefeatedOpponent?.id ?? '';
@@ -114,7 +116,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
   const handleWatchCinematic = (cinematic: OpponentCinematic) => {
     const conversations = cinematic.conversations ?? [];
     const relationshipGain = cinematic.relationshipGain ?? 0;
-    const doDispatch = () => dispatch({ type: 'INTERACTION_CINEMATIC', opponentId, relationshipGain, shopItems });
+    const doDispatch = (gain: number) => dispatch({ type: 'INTERACTION_CINEMATIC', opponentId, relationshipGain: gain, shopItems });
     const showResult = () => setRewardResult({
       icon: '🎬',
       title: 'Cinematic Watched!',
@@ -122,12 +124,20 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
         cinematic.description ?? `Scene ${cinematic.level}`,
         relationshipGain > 0 ? `+${relationshipGain} Relationship XP` : 'Bond deepened.',
       ],
-      onConfirm: doDispatch,
+      onConfirm: () => doDispatch(relationshipGain),
+    });
+    const showFail = () => setRewardResult({
+      icon: '💔',
+      title: 'You failed...',
+      lines: ['The moment slipped away.', 'No relationship XP gained.'],
+      onConfirm: () => doDispatch(0),
+      failed: true,
     });
 
     if (conversations.length > 0) {
       setPendingConversation(conversations);
       setPendingAction(() => showResult);
+      setPendingFail(() => showFail);
     } else {
       showResult();
     }
@@ -137,7 +147,16 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
     const action = pendingAction;
     setPendingConversation(null);
     setPendingAction(null);
+    setPendingFail(null);
     action?.();
+  };
+
+  const handleConversationFail = () => {
+    const fail = pendingFail;
+    setPendingConversation(null);
+    setPendingAction(null);
+    setPendingFail(null);
+    fail?.();
   };
 
   return (
@@ -303,6 +322,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
           opponentName={lastDefeatedOpponent?.name ?? ''}
           heroName={player.name}
           onComplete={handleConversationComplete}
+          onFail={pendingFail ? handleConversationFail : undefined}
         />
       )}
 
@@ -320,6 +340,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
 // ─── Reward Celebration Modal ──────────────────────────────────────────────────
 
 const CONFETTI_COLORS = ['#f59e0b', '#ec4899', '#8b5cf6', '#10b981', '#3b82f6', '#f97316'];
+const FAIL_CONFETTI_COLORS = ['#ef4444', '#6b7280', '#991b1b', '#374151', '#b91c1c', '#4b5563'];
 const CONFETTI_COUNT = 48;
 
 interface ConfettiPiece {
@@ -332,11 +353,11 @@ interface ConfettiPiece {
   shape: 'rect' | 'circle';
 }
 
-function generateConfetti(): ConfettiPiece[] {
+function generateConfetti(colors: string[]): ConfettiPiece[] {
   return Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
     id: i,
     x: Math.random() * 100,
-    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    color: colors[i % colors.length],
     delay: Math.random() * 0.6,
     size: 6 + Math.random() * 8,
     rotation: Math.random() * 360,
@@ -350,7 +371,7 @@ interface RewardCelebrationModalProps {
 }
 
 function RewardCelebrationModal({ result, onClose }: RewardCelebrationModalProps) {
-  const [pieces] = useState<ConfettiPiece[]>(generateConfetti);
+  const [pieces] = useState<ConfettiPiece[]>(() => generateConfetti(result.failed ? FAIL_CONFETTI_COLORS : CONFETTI_COLORS));
   const [visible, setVisible] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
 
@@ -416,7 +437,7 @@ function RewardCelebrationModal({ result, onClose }: RewardCelebrationModalProps
           {result.icon}
         </div>
 
-        <h2 className="font-pixel text-accent text-sm mb-4">{result.title}</h2>
+        <h2 className={`font-pixel text-sm mb-4 ${result.failed ? 'text-red-400' : 'text-accent'}`}>{result.title}</h2>
 
         <div className="flex flex-col gap-1 mb-6">
           {result.lines.map((line, i) => (
@@ -429,9 +450,9 @@ function RewardCelebrationModal({ result, onClose }: RewardCelebrationModalProps
         <button
           ref={confirmRef}
           onClick={handleConfirm}
-          className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-6 rounded-xl transition-colors text-sm"
+          className={`w-full font-bold py-3 px-6 rounded-xl transition-colors text-sm ${result.failed ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-yellow-500 hover:bg-yellow-400 text-black'}`}
         >
-          Continue →
+          {result.failed ? 'Continue...' : 'Continue →'}
         </button>
       </div>
     </div>
