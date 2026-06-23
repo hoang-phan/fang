@@ -107,7 +107,7 @@ export function ConversationOverlay({
                   {speaker}
                 </div>
               )}
-              <p className="text-text-faint text-sm leading-relaxed flex-1">{current.content.replaceAll('{{PLAYER}}', heroName)}</p>
+              <p className="text-text-bright text-xl font-bold leading-relaxed flex-1" style={{textShadow: '-1px 0 black, 0 1px black, 1px 0 black, 0 -1px black'}}>{current.content.replaceAll('{{PLAYER}}', heroName)}</p>
               <div className="flex justify-end">
                 <button onClick={advance} className="text-xs text-text-faint hover:text-text-muted transition-colors">
                   {advanceLabel}
@@ -117,10 +117,10 @@ export function ConversationOverlay({
           </div>
         </div>
       ) : (
-        <div className="relative shrink-0 pb-4 px-4 flex justify-end mx-auto w-full">
+        <div className="absolute bottom-5 right-5 flex justify-end mx-auto w-full">
           <button
             onClick={advance}
-            className="text-xs transition-colors"
+            className="text-2xl transition-colors"
             style={{ color: getContrastColor(currentConv.backgroundColor ?? '#1a232c') }}
           >
             {advanceLabel}
