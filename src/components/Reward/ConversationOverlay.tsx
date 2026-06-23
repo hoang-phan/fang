@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { Conversation } from '../../types';
 import { Sprite } from './Sprite';
 import { useConversationAdvance } from './useConversationAdvance';
@@ -30,10 +30,24 @@ export function ConversationOverlay({
   const minigameClickRef = useRef<(() => void) | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const isConversationVideo = currentConv?.backgroundUrl?.endsWith('.mp4');
+
+  useEffect(() => {
+    if (bgFading && isConversationVideo && videoRef.current) {
+      videoRef.current.style.transition = 'opacity 0.5s';
+      videoRef.current.style.opacity = '0';
+      const el = videoRef.current;
+      const handler = () => onBgFadeOutEnd();
+      el.addEventListener('transitionend', handler, { once: true });
+      return () => el.removeEventListener('transitionend', handler);
+    }
+  }, [bgFading, isConversationVideo, onBgFadeOutEnd]);
+
   const handleFillChange = useCallback((fill: number) => {
     if (videoRef.current) {
-      videoRef.current.playbackRate = fill * 1.05;
-      videoRef.current.style.opacity = String(fill * fill);
+      const rate = Math.max(0, -0.1 + fill * fill * fill * 1.2);
+      videoRef.current.playbackRate = rate < 0.25 ? 0 : rate;
+      videoRef.current.style.opacity = String(rate);
     }
   }, []);
 
@@ -52,7 +66,6 @@ export function ConversationOverlay({
     ? () => minigameClickRef.current?.()
     : advance;
 
-  const isConversationVideo = currentConv.backgroundUrl?.endsWith('.mp4');
   const isConversationImage = currentConv.backgroundUrl && !isConversationVideo;
 
   return (
@@ -78,10 +91,8 @@ export function ConversationOverlay({
           autoPlay
           muted
           loop
-          className="absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
-          style={{ opacity: 0 }}
-          onTransitionEnd={bgFading ? onBgFadeOutEnd : undefined}
-          onLoadedMetadata={() => { if (videoRef.current) { videoRef.current.playbackRate = 0; } }}
+          className="opacity-0 absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
+          onLoadedMetadata={() => { if (videoRef.current) { videoRef.current.playbackRate = 0; videoRef.current.style.opacity = '0'; } }}
         />
       )}
 

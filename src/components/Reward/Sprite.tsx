@@ -12,7 +12,7 @@ export function Sprite({
       src={sprite.url}
       alt=""
       style={{
-        position: 'absolute',
+        position: 'fixed',
         bottom: sprite.y ?? 0,
         left: `calc(50% + ${sprite.x ?? 0}px - ${(sprite.width ?? 0) / 2}px)`,
         width: sprite.width ?? undefined,
