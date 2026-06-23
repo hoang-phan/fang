@@ -22,14 +22,14 @@ export function generateRewards(
         type: 'upskill',
         move: oppMove,
         label: `Upskill ${oppMove.name}`,
-        description: `Level up ${oppMove.name} to level ${existing.level + 1}. Damage +25%.`,
+        description: `Level up ${oppMove.name}. Grow stronger together.`,
       });
     } else if (!existing) {
       rewards.push({
         type: 'learn_new',
         move: oppMove,
         label: `Learn ${oppMove.name}`,
-        description: oppMove.description + ` (${oppMove.mpCost} MP, ${oppMove.baseDamage > 0 ? oppMove.baseDamage + ' dmg' : 'heals ' + Math.abs(oppMove.baseDamage) + ' HP'})`,
+        description: oppMove.description,
       });
     }
   }

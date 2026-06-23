@@ -90,27 +90,49 @@ export const CATEGORY_SLOTS: Record<ItemCategory, ItemSlot[]> = {
 
 const DEFENSE_CATEGORIES: ItemCategory[] = ['headgear', 'bodyArmor', 'gauntlets', 'boots', 'shield'];
 
-// ─── Enhancement value ranges by quality ──────────────────────────────────────
+// ─── Affix tier system ────────────────────────────────────────────────────────
+//
+// Each affix type has 5 tiers. Rolling an affix picks a random tier from the
+// allowed range for that item quality. Same affix type on the same item stacks
+// (values are summed). Cost scales with total tier sum across all affixes.
+//
+// Tier indices: 0 (weakest) → 4 (strongest)
 
-const ENHANCEMENT_RANGES: Record<ItemQuality, Record<EnhancementType, [number, number]>> = {
-  rude:      { hpBoost:[0,0], mpBoost:[0,0], damageBoost:[0,0], defenseBoost:[0,0], elementDamage:[0,0], hpRegen:[0,0], mpRegen:[0,0], elementResist:[0,0], goldLootBoost:[0,0], dropChanceBoost:[0,0] },
-  normal:    { hpBoost:[5,15], mpBoost:[3,8], damageBoost:[1,4], defenseBoost:[1,3], elementDamage:[1,4], hpRegen:[1,3], mpRegen:[1,2], elementResist:[2,6], goldLootBoost:[5,15], dropChanceBoost:[3,10] },
-  rare:      { hpBoost:[12,30], mpBoost:[6,16], damageBoost:[3,8], defenseBoost:[2,6], elementDamage:[3,8], hpRegen:[2,5], mpRegen:[2,4], elementResist:[5,12], goldLootBoost:[12,30], dropChanceBoost:[8,20] },
-  legendary: { hpBoost:[25,60], mpBoost:[12,30], damageBoost:[6,15], defenseBoost:[5,12], elementDamage:[6,15], hpRegen:[4,10], mpRegen:[3,8], elementResist:[10,20], goldLootBoost:[25,60], dropChanceBoost:[15,40] },
+export interface AffixTier {
+  min: number;  // inclusive min value
+  max: number;  // inclusive max value
+  cost: number; // gold cost contribution for this tier
+}
+
+export const AFFIX_TIERS: Record<EnhancementType, AffixTier[]> = {
+  hpBoost:        [{ min:1, max:3, cost:4 }, { min:4, max:6, cost:8 }, { min:7, max:10, cost:14 }, { min:11, max:15, cost:22 }, { min:16, max:22, cost:34 }],
+  mpBoost:        [{ min:1, max:2, cost:3 }, { min:3, max:5, cost:6 }, { min:6, max:8, cost:11 }, { min:9, max:12, cost:18 }, { min:13, max:18, cost:28 }],
+  hpRegen:        [{ min:1, max:1, cost:5 }, { min:1, max:2, cost:10 }, { min:2, max:3, cost:18 }, { min:3, max:4, cost:28 }, { min:4, max:6, cost:42 }],
+  mpRegen:        [{ min:1, max:1, cost:5 }, { min:1, max:2, cost:10 }, { min:2, max:3, cost:18 }, { min:3, max:4, cost:28 }, { min:4, max:5, cost:40 }],
+  damageBoost:    [{ min:1, max:2, cost:6 }, { min:3, max:5, cost:12 }, { min:6, max:9, cost:20 }, { min:10, max:14, cost:32 }, { min:15, max:20, cost:50 }],
+  defenseBoost:   [{ min:1, max:2, cost:5 }, { min:3, max:4, cost:10 }, { min:5, max:7, cost:17 }, { min:8, max:10, cost:27 }, { min:11, max:15, cost:42 }],
+  elementDamage:  [{ min:1, max:2, cost:5 }, { min:3, max:5, cost:10 }, { min:6, max:8, cost:17 }, { min:9, max:12, cost:27 }, { min:13, max:18, cost:42 }],
+  elementResist:  [{ min:2, max:3, cost:4 }, { min:4, max:6, cost:8 }, { min:7, max:10, cost:14 }, { min:11, max:15, cost:22 }, { min:16, max:22, cost:34 }],
+  goldLootBoost:  [{ min:3, max:5, cost:4 }, { min:6, max:10, cost:8 }, { min:11, max:16, cost:14 }, { min:17, max:24, cost:22 }, { min:25, max:35, cost:34 }],
+  dropChanceBoost:[{ min:2, max:4, cost:4 }, { min:5, max:8, cost:8 }, { min:9, max:13, cost:14 }, { min:14, max:20, cost:22 }, { min:21, max:30, cost:34 }],
 };
 
-const BASE_DAMAGE_RANGES: Record<ItemQuality, [number, number]> = {
-  rude:      [2, 6],
-  normal:    [5, 12],
-  rare:      [10, 20],
-  legendary: [18, 30],
+// Quality controls which tier range is accessible when rolling
+const QUALITY_TIER_RANGE: Record<ItemQuality, [number, number]> = {
+  rude:      [0, 0],  // tier 0 only (rude items have no affixes, but range defined for completeness)
+  normal:    [0, 2],  // tiers 0–2
+  rare:      [1, 3],  // tiers 1–3
+  legendary: [2, 4],  // tiers 2–4
 };
 
-const BASE_DEFENSE_RANGES: Record<ItemQuality, [number, number]> = {
-  rude:      [1, 3],
-  normal:    [2, 6],
-  rare:      [5, 10],
-  legendary: [8, 16],
+// How many affix rolls per quality (same as before, but rolls can now stack)
+const AFFIX_ROLL_COUNT: Record<ItemQuality, number> = {
+  rude: 0, normal: 1, rare: 2, legendary: 3,
+};
+
+// Base item cost (before affix tier cost is added)
+const QUALITY_BASE_COST: Record<ItemQuality, number> = {
+  rude: 10, normal: 20, rare: 40, legendary: 80,
 };
 
 const ALL_ELEMENTS: ElementType[] = [
@@ -130,14 +152,18 @@ function randInt(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
-function rollEnhancement(type: EnhancementType, quality: ItemQuality): Enhancement {
-  const [min, max] = ENHANCEMENT_RANGES[quality][type];
-  const value = randInt(min, max);
+// Rolls one affix at a random tier within the quality's allowed range.
+// Returns the enhancement and the tier index (for cost calculation).
+function rollAffixAtTier(type: EnhancementType, quality: ItemQuality): { enhancement: Enhancement; tierIndex: number } {
+  const [minTier, maxTier] = QUALITY_TIER_RANGE[quality];
+  const tierIndex = randInt(minTier, maxTier);
+  const tier = AFFIX_TIERS[type][tierIndex];
+  const value = randInt(tier.min, tier.max);
   if (type === 'elementDamage' || type === 'elementResist') {
     const element = ALL_ELEMENTS[Math.floor(Math.random() * ALL_ELEMENTS.length)];
-    return { type, value, element };
+    return { enhancement: { type, value, element }, tierIndex };
   }
-  return { type, value };
+  return { enhancement: { type, value }, tierIndex };
 }
 
 // ─── Item names ───────────────────────────────────────────────────────────────
@@ -170,10 +196,18 @@ function pickName(category: ItemCategory, quality: ItemQuality): string {
   return `${quality} ${CATEGORY_LABELS[category]}`;
 }
 
-// ─── Enhancement count per quality ───────────────────────────────────────────
+const BASE_DAMAGE_RANGES: Record<ItemQuality, [number, number]> = {
+  rude:      [2, 6],
+  normal:    [5, 12],
+  rare:      [10, 20],
+  legendary: [18, 30],
+};
 
-const ENHANCEMENT_COUNT: Record<ItemQuality, number> = {
-  rude: 0, normal: 1, rare: 2, legendary: 3,
+const BASE_DEFENSE_RANGES: Record<ItemQuality, [number, number]> = {
+  rude:      [1, 3],
+  normal:    [2, 6],
+  rare:      [5, 10],
+  legendary: [8, 16],
 };
 
 // ─── Main generator ───────────────────────────────────────────────────────────
@@ -182,21 +216,34 @@ export function generateEquipmentItem(category: ItemCategory, quality: ItemQuali
   const id = `eq_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
   const name = pickName(category, quality);
   const icon = CATEGORY_ICONS[category];
-  const count = ENHANCEMENT_COUNT[quality];
+  const rollCount = AFFIX_ROLL_COUNT[quality];
 
   const pool = allowedEnhancements(category);
-  const picked: Enhancement[] = [];
-  const usedTypes = new Set<string>();
 
-  for (let i = 0; i < count && pool.length > 0; i++) {
-    const available = pool.filter(t => !usedTypes.has(t));
-    if (available.length === 0) break;
-    const type = available[Math.floor(Math.random() * available.length)];
-    usedTypes.add(type);
-    picked.push(rollEnhancement(type, quality));
+  // Roll affixes — same type can be rolled multiple times and stacks
+  // element-specific types (elementDamage/elementResist) stack per element
+  const affixMap = new Map<string, Enhancement>();
+  let totalTierCost = 0;
+
+  for (let i = 0; i < rollCount; i++) {
+    const type = pool[Math.floor(Math.random() * pool.length)] as EnhancementType;
+    const { enhancement, tierIndex } = rollAffixAtTier(type, quality);
+    totalTierCost += AFFIX_TIERS[type][tierIndex].cost;
+
+    // Stack key: for elemental types include the element so fire and water stack separately
+    const stackKey = enhancement.element ? `${type}_${enhancement.element}` : type;
+
+    const existing = affixMap.get(stackKey);
+    if (existing) {
+      affixMap.set(stackKey, { ...existing, value: existing.value + enhancement.value });
+    } else {
+      affixMap.set(stackKey, enhancement);
+    }
   }
 
-  const item: EquipmentItem = { id, category, quality, name, icon, enhancements: picked };
+  const enhancements = Array.from(affixMap.values());
+
+  const item: EquipmentItem = { id, category, quality, name, icon, enhancements };
 
   if (category === 'weapon') {
     const [min, max] = BASE_DAMAGE_RANGES[quality];
@@ -205,6 +252,9 @@ export function generateEquipmentItem(category: ItemCategory, quality: ItemQuali
     const [min, max] = BASE_DEFENSE_RANGES[quality];
     item.baseDefense = randInt(min, max);
   }
+
+  // Attach tier cost for pricing (stored transiently — not persisted but recalculated)
+  item._affixTierCost = totalTierCost;
 
   return item;
 }
@@ -236,13 +286,30 @@ export function generateShopEquipment(): EquipmentItem[] {
 }
 
 // ─── Cost ─────────────────────────────────────────────────────────────────────
-
-const QUALITY_BASE_COST: Record<ItemQuality, number> = {
-  rude: 15, normal: 40, rare: 90, legendary: 220,
-};
+//
+// Item cost = base quality cost + sum of affix tier costs.
+// If _affixTierCost is not stored (e.g. items from older saves), fall back to
+// recalculating a rough estimate from affix values.
 
 export function equipmentCost(item: EquipmentItem): number {
-  return QUALITY_BASE_COST[item.quality];
+  const base = QUALITY_BASE_COST[item.quality];
+  const tierCost = item._affixTierCost ?? estimateAffixTierCost(item);
+  return base + tierCost;
+}
+
+function estimateAffixTierCost(item: EquipmentItem): number {
+  // Rough estimate for legacy items: use mid-tier cost per affix
+  return item.enhancements.length * 12;
+}
+
+// Returns a tier label (I–V) for a given enhancement value by finding which tier it falls in.
+// Stacked affixes may exceed the max of tier V — those are shown as "V+" to indicate over-tier.
+export function getAffixTierLabel(enh: Enhancement): string {
+  const tiers = AFFIX_TIERS[enh.type];
+  for (let i = tiers.length - 1; i >= 0; i--) {
+    if (enh.value >= tiers[i].min) return ['I', 'II', 'III', 'IV', 'V'][i] + (enh.value > tiers[i].max ? '+' : '');
+  }
+  return 'I';
 }
 
 // ─── Stat computation ─────────────────────────────────────────────────────────

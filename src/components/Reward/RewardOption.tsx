@@ -1,9 +1,8 @@
-import type { RewardOption, PlayerStatBonuses } from '../../types';
-import { getTypeIcon, moveDamageRange } from '../../utils/damage';
+import type { RewardOption } from '../../types';
+import { getTypeIcon } from '../../utils/damage';
 
 interface RewardOptionCardProps {
   reward: RewardOption;
-  playerStats: PlayerStatBonuses;
   onClick: () => void;
 }
 
@@ -21,10 +20,7 @@ function rewardBg(reward: RewardOption): string {
   return 'border-blue-600 bg-blue-900/20 hover:bg-blue-900/40';
 }
 
-const fmtRange = (r: { min: number; max: number }) =>
-  r.min === r.max ? `${r.min}` : `${r.min}–${r.max}`;
-
-export function RewardOptionCard({ reward, playerStats, onClick }: RewardOptionCardProps) {
+export function RewardOptionCard({ reward, onClick }: RewardOptionCardProps) {
   return (
     <button
       onClick={onClick}
@@ -40,22 +36,9 @@ export function RewardOptionCard({ reward, playerStats, onClick }: RewardOptionC
           <p className="text-sm text-text-muted">{reward.description}</p>
           {reward.move && (() => {
             const move = reward.move!;
-            const cur = moveDamageRange(move, playerStats);
-            const nextMove = move.level < move.maxLevel ? { ...move, level: move.level + 1 } : null;
-            const next = nextMove ? moveDamageRange(nextMove, playerStats) : null;
             return (
               <div className="mt-2 flex flex-wrap gap-3 text-xs">
                 <span className="text-blue-400">{move.mpCost} MP</span>
-                {cur && (
-                  move.baseDamage > 0
-                    ? <span className="text-orange-400">{fmtRange(cur)} dmg</span>
-                    : <span className="text-green-400">heals {fmtRange({ min: Math.abs(cur.max), max: Math.abs(cur.min) })}</span>
-                )}
-                {next && cur && reward.type === 'upskill' && (
-                  move.baseDamage > 0
-                    ? <span className="text-accent">→ {fmtRange(next)} dmg</span>
-                    : <span className="text-accent">→ heals {fmtRange({ min: Math.abs(next.max), max: Math.abs(next.min) })}</span>
-                )}
                 <span className="text-text-faint">Lv{move.level}{reward.type === 'upskill' ? `→${move.level + 1}` : ''} / {move.maxLevel}</span>
               </div>
             );

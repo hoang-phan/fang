@@ -1,7 +1,7 @@
 import type { Dispatch } from 'react';
 import type { PlayerStats, ItemSlot, EquipmentItem } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
-import { SLOT_ICONS, SLOT_LABELS, CATEGORY_ICONS, CATEGORY_LABELS, CATEGORY_SLOTS, equipmentCost } from '../../utils/equipment';
+import { SLOT_ICONS, SLOT_LABELS, CATEGORY_ICONS, CATEGORY_LABELS, CATEGORY_SLOTS, equipmentCost, getAffixTierLabel } from '../../utils/equipment';
 
 function resolveEquipSlot(item: EquipmentItem, equipped: PlayerStats['equipped']): ItemSlot {
   const slots = CATEGORY_SLOTS[item.category];
@@ -102,7 +102,8 @@ export function EquipmentPanel({ player, dispatch }: Props) {
                     <div className="text-[10px] text-blue-400">🛡️ {item.baseDefense} base def</div>
                   )}
                   {item.enhancements.map((enh, i) => (
-                    <div key={i} className="text-[10px] text-text-muted">
+                    <div key={i} className="text-[10px] text-text-muted flex items-center gap-1">
+                      <span className="text-[9px] font-bold text-text-faint opacity-70">[{getAffixTierLabel(enh)}]</span>
                       +{enh.value} {enh.element ? `${enh.element} ` : ''}{ENHANCEMENT_LABELS[enh.type] ?? enh.type}
                     </div>
                   ))}

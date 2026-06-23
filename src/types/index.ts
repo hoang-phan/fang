@@ -241,6 +241,7 @@ export interface EquipmentItem {
   baseDamage?: number;  // weapon only
   baseDefense?: number; // headgear, bodyArmor, gauntlets, boots, shield only
   enhancements: Enhancement[];
+  _affixTierCost?: number; // sum of affix tier costs — used for dynamic pricing
 }
 
 export type EquippedItems = Partial<Record<ItemSlot, EquipmentItem>>;

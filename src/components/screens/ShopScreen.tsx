@@ -2,7 +2,7 @@ import type { Dispatch } from 'react';
 import type { GameState } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
 import { SHOP_ITEMS } from '../../data/shopItems';
-import { equipmentCost, CATEGORY_LABELS } from '../../utils/equipment';
+import { equipmentCost, CATEGORY_LABELS, getAffixTierLabel } from '../../utils/equipment';
 import { GoldDisplay } from '../ui/GoldDisplay';
 import { Button } from '../ui/Button';
 import { ProgressBar } from '../ui/ProgressBar';
@@ -99,7 +99,8 @@ export function ShopScreen({ gameState, dispatch }: ShopScreenProps) {
                       <div className="text-xs text-blue-400">🛡️ {item.baseDefense} base def</div>
                     )}
                     {item.enhancements.map((enh, i) => (
-                      <div key={i} className="text-xs text-text-muted">
+                      <div key={i} className="text-xs text-text-muted flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-text-faint opacity-70">[{getAffixTierLabel(enh)}]</span>
                         +{enh.value} {enh.element ? `${enh.element} ` : ''}{ENHANCEMENT_LABELS[enh.type] ?? enh.type}
                       </div>
                     ))}

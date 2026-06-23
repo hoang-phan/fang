@@ -1,7 +1,7 @@
 import type { Dispatch } from 'react';
 import type { PlayerStats, Move } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
-import { getTypeIcon, moveDamageRange } from '../../utils/damage';
+import { getTypeIcon } from '../../utils/damage';
 
 interface PlayerLoadoutProps {
   player: PlayerStats;
@@ -36,11 +36,6 @@ export function PlayerLoadout({ player, dispatch }: PlayerLoadoutProps) {
                 <div className="flex items-center justify-between mt-1">
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-blue-400">{move.mpCost} MP</span>
-                    {(() => { const r = moveDamageRange(move, player.stats); return r && (
-                      move.baseDamage > 0
-                        ? <span className="text-xs text-orange-400">{r.min === r.max ? r.min : `${r.min}–${r.max}`}</span>
-                        : <span className="text-xs text-green-400">+{r.min === r.max ? Math.abs(r.min) : `${Math.abs(r.max)}–${Math.abs(r.min)}`}</span>
-                    ); })()}
                   </div>
                   <button
                     onClick={() => handleUnequip(i as 0 | 1 | 2 | 3)}
@@ -68,11 +63,6 @@ export function PlayerLoadout({ player, dispatch }: PlayerLoadoutProps) {
                   <div className="text-xs text-text-bright truncate">{move.name}</div>
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-blue-400">{move.mpCost} MP</span>
-                    {(() => { const r = moveDamageRange(move, player.stats); return r && (
-                      move.baseDamage > 0
-                        ? <span className="text-xs text-orange-400">{r.min === r.max ? r.min : `${r.min}–${r.max}`}</span>
-                        : <span className="text-xs text-green-400">+{r.min === r.max ? Math.abs(r.min) : `${Math.abs(r.max)}–${Math.abs(r.min)}`}</span>
-                    ); })()}
                   </div>
                 </div>
                 {move.level > 1 && <span className="text-xs text-accent-muted">Lv{move.level}</span>}

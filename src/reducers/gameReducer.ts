@@ -2,14 +2,16 @@ import type { GameState, GameScreen, PlayerStats, RewardOption, BattleState, Mov
 import { SHOP_ITEMS } from '../data/shopItems';
 import { generateRewards } from '../utils/rewards';
 import { applyXp, calcPlayerXpGain, calcOpponentXpGain, getOpponentProgress, getScaledOpponent, getRelationshipProgress, applyRelXp } from '../utils/xp';
-import { generateShopEquipment, computeEquipmentStats, equipmentCost, CATEGORY_SLOTS } from '../utils/equipment';
+import { generateShopEquipment, generateEquipmentItem, computeEquipmentStats, equipmentCost, CATEGORY_SLOTS } from '../utils/equipment';
 
-/** Pick 4–6 items from the backend pool, shuffled. Falls back to generated items if pool is empty. */
+/** Pick 4–6 items from the backend pool, re-rolling affixes on each so stats are randomized. */
 function pickShopEquipment(pool: EquipmentItem[] | undefined): EquipmentItem[] {
   if (!pool || pool.length === 0) return generateShopEquipment();
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
   const count = 4 + Math.floor(Math.random() * 3);
-  return shuffled.slice(0, Math.min(count, shuffled.length));
+  return shuffled.slice(0, Math.min(count, shuffled.length)).map(
+    item => generateEquipmentItem(item.category, item.quality)
+  );
 }
 import { rollDrop } from '../utils/drops';
 
@@ -356,10 +358,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case 'BUY_EQUIPMENT': {
       const item = state.shopEquipment.find(i => i.id === action.itemId);
       if (!item) return state;
-      const cost = (() => {
-        const costs: Record<string, number> = { rude: 15, normal: 40, rare: 90, legendary: 220 };
-        return costs[item.quality] ?? 40;
-      })();
+      const cost = equipmentCost(item);
       if (state.player.gold < cost) return state;
       return {
         ...state,

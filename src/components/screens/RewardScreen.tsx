@@ -200,7 +200,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
             <MenuButton
               icon="💰"
               label="Loot"
-              description={lootReward ? lootReward.description : 'No loot available'}
+              description={lootReward ? 'Gold + possible item drop' : 'No loot available'}
               disabled={!lootReward}
               onClick={handleLoot}
               accent="gold"
@@ -221,7 +221,6 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
               <RewardOptionCard
                 key={i}
                 reward={reward}
-                playerStats={player.stats}
                 onClick={() => handleChooseSkill(reward)}
               />
             ))}
@@ -234,7 +233,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
             <MenuButton
               icon="💬"
               label="Chat"
-              description="+15 relationship XP"
+              description="Have a conversation, get closer"
               onClick={handleChat}
               accent="pink"
             />
@@ -269,7 +268,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
                   key={gift.id}
                   icon="🎁"
                   label={gift.name}
-                  description={`${gift.gold}g → +${gift.exp} relationship XP`}
+                  description={`${gift.gold}g · deepens your bond`}
                   disabled={!canAfford}
                   disabledReason={!canAfford ? 'Not enough gold' : undefined}
                   onClick={() => handleGift(gift.id)}
