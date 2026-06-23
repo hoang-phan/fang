@@ -33,6 +33,7 @@ export function ConversationOverlay({
   const handleFillChange = useCallback((fill: number) => {
     if (videoRef.current) {
       videoRef.current.playbackRate = fill;
+      videoRef.current.style.opacity = String(fill);
     }
   }, []);
 
@@ -80,7 +81,7 @@ export function ConversationOverlay({
           className="absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
           style={{ opacity: bgFading ? 0 : 1 }}
           onTransitionEnd={bgFading ? onBgFadeOutEnd : undefined}
-          onLoadedMetadata={() => { if (videoRef.current) videoRef.current.playbackRate = 0; }}
+          onLoadedMetadata={() => { if (videoRef.current) { videoRef.current.playbackRate = 0; videoRef.current.style.opacity = '0'; } }}
         />
       )}
 
