@@ -8,7 +8,7 @@ interface RewardOptionCardProps {
 }
 
 function rewardIcon(reward: RewardOption): string {
-  if (reward.type === 'cinematic') return '🎬';
+  if (reward.type === 'cinematic') return '💕';
   if (reward.type === 'loot') return '💰';
   if (reward.move) return getTypeIcon(reward.move.type);
   return '⬆️';

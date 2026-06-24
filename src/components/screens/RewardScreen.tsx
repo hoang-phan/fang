@@ -120,8 +120,8 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
     const relationshipGain = cinematic.relationshipGain ?? 0;
     const doDispatch = (gain: number) => dispatch({ type: 'INTERACTION_CINEMATIC', opponentId, relationshipGain: gain, shopItems });
     const showResult = () => setRewardResult({
-      icon: '🎬',
-      title: 'Cinematic Watched!',
+      icon: '💕',
+      title: 'Event is successful!',
       lines: [
         cinematic.description ?? `Scene ${cinematic.level}`,
         relationshipGain > 0 ? `+${relationshipGain} Relationship XP` : 'Bond deepened.',
@@ -264,7 +264,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
               <MenuButton
                 icon="💬"
                 label="Interactions"
-                description="Chat, give gifts, or watch cinematics"
+                description="Chat, give gifts, or events"
                 focused={focusedIndex === interactIdx}
                 onClick={() => setMenuView('interactions')}
               />
@@ -321,8 +321,8 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
               accent="pink"
             />
             <MenuButton
-              icon="🎬"
-              label="Watch Cinematics"
+              icon="💕"
+              label="Events"
               description={unlockedCinematics.length > 0 ? `${unlockedCinematics.length} unlocked` : 'None unlocked yet'}
               disabled={unlockedCinematics.length === 0}
               focused={focusedIndex === 2 && unlockedCinematics.length > 0}
@@ -357,13 +357,13 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
           </div>
         )}
 
-        {/* Cinematics submenu */}
+        {/* Events submenu */}
         {menuView === 'cinematics' && (
           <div className="flex flex-col gap-3">
             {unlockedCinematics.map((c, i) => (
               <MenuButton
                 key={c.level}
-                icon="🎬"
+                icon="💕"
                 label={`Scene ${i + 1}`}
                 description={c.description ?? `Relationship level ${c.level - 1}`}
                 focused={focusedIndex === i}

@@ -129,3 +129,12 @@ body {
 .damage-number {
   animation: float-up 0.8s ease-out forwards;
 }
+
+@keyframes pulse {
+  0%, 100% { font-size: 24px; }
+  50% { font-size: 32px; }
+}
+
+.text-pulse {
+  animation: pulse 1s ease-in-out infinite;
+}

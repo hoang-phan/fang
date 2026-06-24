@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { MiniGameProgressBar } from '../ui/MiniGameProgressBar';
+import { useMiniGameOutcome } from './useMiniGameOutcome';
 
 const POSITIVE_WORDS = [
   'love', 'hope', 'joy', 'kind', 'warm', 'brave', 'true', 'friend', 'smile',
@@ -66,12 +68,11 @@ function MobileButton({ side, onPress }: { side: 'left' | 'right'; onPress: () =
 
 export function WordsCatcherGame({ description, onWin, onLose, onMoveLeft, onMoveRight, onLevelChange }: WordsCatcherGameProps) {
   const [barLevel, setBarLevel] = useState(BAR_START);
-  const [phase, setPhase] = useState<'playing' | 'won' | 'lost'>('playing');
   const [catcherX, setCatcherX] = useState(0.5);
   const [words, setWords] = useState<FallingWord[]>([]);
+  const { phase, phaseRef, advance } = useMiniGameOutcome(onWin, onLose);
 
   const barLevelRef = useRef(BAR_START);
-  const phaseRef = useRef<'playing' | 'won' | 'lost'>('playing');
   const catcherXRef = useRef(0.5);
   const wordsRef = useRef<FallingWord[]>([]);
   const elapsedRef = useRef(0);
@@ -128,7 +129,7 @@ export function WordsCatcherGame({ description, onWin, onLose, onMoveLeft, onMov
 
       // Move all words and check collisions.
       // Bar is at bottom: barLevel * 100 / BAR_STEPS, so its top edge in normalized coords = 1 - barLevel * 100 / BAR_STEPS
-      const barTopY = 1 - barLevelRef.current / BAR_STEPS;
+      const barTopY = 1 - barLevelRef.current / BAR_STEPS * 0.8;
       let barDelta = 0;
       let structuralChange = false;
       const cx = catcherXRef.current;
@@ -163,13 +164,11 @@ export function WordsCatcherGame({ description, onWin, onLose, onMoveLeft, onMov
         onLevelChange?.(newLevel / BAR_STEPS);
 
         if (newLevel >= BAR_STEPS) {
-          phaseRef.current = 'won';
-          setPhase('won');
+          advance('won');
           return;
         }
         if (newLevel <= 0) {
-          phaseRef.current = 'lost';
-          setPhase('lost');
+          advance('lost');
           return;
         }
       }
@@ -190,22 +189,7 @@ export function WordsCatcherGame({ description, onWin, onLose, onMoveLeft, onMov
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (phase === 'won') {
-      const t = setTimeout(onWin, 2000);
-      return () => clearTimeout(t);
-    }
-    if (phase === 'lost') {
-      const t = setTimeout(onLose, 900);
-      return () => clearTimeout(t);
-    }
-  }, [phase, onWin, onLose]);
-
-  const statusLabel = phase === 'won'
-    ? 'You did it! 🎉'
-    : phase === 'lost'
-    ? 'Not this time...'
-    : (description || 'catch the good words');
+  const fillPct = (barLevel / BAR_STEPS) * 100;
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -216,7 +200,7 @@ export function WordsCatcherGame({ description, onWin, onLose, onMoveLeft, onMov
           key={w.id}
           ref={w.divRef}
           className={`absolute font-pixel text-xs pointer-events-none px-1 py-0.5 rounded select-none drop-shadow-md ${
-            w.positive ? 'text-green-200 bg-green-900/60' : 'text-red-200 bg-red-900/60'
+            w.positive ? 'text-pink-200 bg-pink-900/60' : 'text-gray-200 bg-gray-900/60'
           }`}
           style={{ left: `${w.x * 100}%`, top: `${w.y * 100}%`, fontSize: '20px', fontWeight: 'bold' }}
         >
@@ -224,40 +208,19 @@ export function WordsCatcherGame({ description, onWin, onLose, onMoveLeft, onMov
         </div>
       ))}
 
-      {/* Catcher bar — sits at bottom 10%, center of the catch zone */}
+      {/* Catcher bar */}
       <div
-        className="absolute h-3 bg-yellow-400 rounded-full shadow-[0_0_10px_#facc15]"
+        className="absolute h-3 rounded-full"
         style={{
-          bottom: `${barLevel * 100 / BAR_STEPS}%`,
+          bottom: `${barLevel * 80 / BAR_STEPS}%`,
           width: `${CATCHER_HALF * 2 * 100}%`,
           left: `${(catcherX - CATCHER_HALF) * 100}%`,
+          backgroundColor: '#c0406a',
+          boxShadow: '0 0 10px #c0406a88',
         }}
       />
 
-      {/* Vertical level bar — spans full screen height, right edge */}
-      <div className="absolute right-3 inset-y-0 flex flex-col-reverse justify-between items-center py-3 pointer-events-none">
-        {Array.from({ length: BAR_STEPS + 1 }, (_, i) => (
-          <div
-            key={i}
-            className={`w-2 h-2 rounded-full transition-all duration-150 ${
-              i === barLevel
-                ? 'bg-yellow-400 shadow-[0_0_8px_#facc15]'
-                : i < barLevel
-                ? 'bg-yellow-600/70'
-                : 'bg-white/20'
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* WIN / LOSE labels */}
-      <div className="absolute right-7 top-3 font-pixel text-[7px] text-green-400 pointer-events-none">WIN</div>
-      <div className="absolute right-7 bottom-3 font-pixel text-[7px] text-red-400 pointer-events-none">LOSE</div>
-
-      {/* Status label */}
-      <div className="absolute bottom-6 left-0 right-10 text-center font-pixel text-[10px] text-white/60 pointer-events-none drop-shadow-md">
-        {statusLabel}
-      </div>
+      <MiniGameProgressBar phase={phase} description={description} fillPct={fillPct} />
 
       {/* Mobile overlay buttons — pointer-events enabled */}
       {phase === 'playing' && (

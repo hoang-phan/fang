@@ -40,8 +40,8 @@ export function generateRewards(
     rewards.push({
       type: 'cinematic',
       cinematicUrl,
-      label: `Watch ${opponent.name}'s Cinematic`,
-      description: 'Unlock a cinematic scene. Other rewards are forfeited.',
+      label: `${opponent.name}'s Event`,
+      description: 'Unlock an event scene. Other rewards are forfeited.',
     });
   }
 
