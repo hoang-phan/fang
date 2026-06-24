@@ -1,6 +1,7 @@
 import type { Dispatch } from 'react';
 import type { GameState } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
+import { useShopKeys } from '../../hooks/useKeyboardShortcuts';
 import { SHOP_ITEMS } from '../../data/shopItems';
 import { equipmentCost, CATEGORY_LABELS, getAffixTierLabel } from '../../utils/equipment';
 import { GoldDisplay } from '../ui/GoldDisplay';
@@ -48,6 +49,8 @@ interface ShopScreenProps {
 
 export function ShopScreen({ gameState, dispatch }: ShopScreenProps) {
   const { player } = gameState;
+
+  useShopKeys({ onContinue: () => dispatch({ type: 'GO_TO_OPPONENT_SELECT' }) });
 
   return (
     <div className="min-h-screen bg-theme-base flex flex-col">

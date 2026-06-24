@@ -3,6 +3,7 @@ import { getTypeIcon } from '../../utils/damage';
 
 interface RewardOptionCardProps {
   reward: RewardOption;
+  focused?: boolean;
   onClick: () => void;
 }
 
@@ -20,13 +21,14 @@ function rewardBg(reward: RewardOption): string {
   return 'border-blue-600 bg-blue-900/20 hover:bg-blue-900/40';
 }
 
-export function RewardOptionCard({ reward, onClick }: RewardOptionCardProps) {
+export function RewardOptionCard({ reward, focused, onClick }: RewardOptionCardProps) {
   return (
     <button
       onClick={onClick}
       className={`
         w-full text-left rounded-xl border p-5 transition-all duration-150 cursor-pointer
         ${rewardBg(reward)}
+        ${focused ? 'ring-2 ring-white/60 ring-offset-1 ring-offset-transparent' : ''}
       `}
     >
       <div className="flex items-start gap-4">

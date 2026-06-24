@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import type { BattleState, OpponentDef } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
 import { useBattle } from '../../hooks/useBattle';
+import { useBattleKeys } from '../../hooks/useKeyboardShortcuts';
 import { BattleArena } from '../battle/BattleArena';
 import { CombatantCard } from '../battle/CombatantCard';
 import { BattleLog } from '../battle/BattleLog';
@@ -26,6 +27,14 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
   const victoryFired = useRef(false);
   const defeatFired = useRef(false);
   const goldSeed = useRef(Math.random()).current;
+
+  useBattleKeys({
+    isPlayerTurn,
+    moves: state.player.moves,
+    playerMp: state.player.mp,
+    onAttack: () => dispatch({ type: 'USE_ATTACK' }),
+    onSpecial: (slot) => dispatch({ type: 'USE_SPECIAL', slotIndex: slot }),
+  });
 
   useEffect(() => {
     if (state.phase === 'victory' && !victoryFired.current) {

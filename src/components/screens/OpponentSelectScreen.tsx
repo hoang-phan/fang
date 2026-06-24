@@ -7,6 +7,7 @@ import { StatsPanel } from '../ui/StatsPanel';
 import { getOpponentProgress } from '../../utils/xp';
 import { OpponentSelectHeader } from '../OpponentSelect/OpponentSelectHeader';
 import { OpponentCard } from '../OpponentSelect/OpponentCard';
+import { useOpponentSelectKeys } from '../../hooks/useKeyboardShortcuts';
 
 interface OpponentSelectScreenProps {
   gameState: GameState;
@@ -29,6 +30,13 @@ export function OpponentSelectScreen({ gameState, dispatch, opponents }: Opponen
     if (!opponentDef) return;
     dispatch({ type: 'START_BATTLE', opponentDef });
   };
+
+  useOpponentSelectKeys({
+    opponents,
+    selectedOpponentId,
+    onNavigate: (id) => dispatch({ type: 'SELECT_OPPONENT', opponentId: id }),
+    onFight: handleFight,
+  });
 
   return (
     <div className="min-h-screen bg-theme-base flex flex-col">

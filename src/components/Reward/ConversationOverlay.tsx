@@ -4,6 +4,7 @@ import { Sprite } from './Sprite';
 import { useConversationAdvance } from './useConversationAdvance';
 import { getContrastColor } from '../../utils/color';
 import { ClickMiniGame } from './ClickMiniGame';
+import { useConversationKeys } from '../../hooks/useKeyboardShortcuts';
 
 interface ConversationOverlayProps {
   conversations: Conversation[];
@@ -29,6 +30,15 @@ export function ConversationOverlay({
   const { currentConv, current, isVeryLast, advance, bgFading, onBgFadeOutEnd } = useConversationAdvance(conversations, onComplete);
   const minigameClickRef = useRef<(() => void) | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const advanceRef = useRef(advance);
+  const isMiniGameRef = useRef(false);
+
+  useEffect(() => {
+    advanceRef.current = advance;
+    isMiniGameRef.current = !!(current && current.content.startsWith('(click-game'));
+  });
+
+  useConversationKeys({ advanceRef, isMiniGameRef, miniGameClickRef: minigameClickRef });
 
   const isConversationVideo = currentConv?.backgroundUrl?.endsWith('.mp4');
 
@@ -42,6 +52,7 @@ export function ConversationOverlay({
       return () => el.removeEventListener('transitionend', handler);
     }
   }, [bgFading, isConversationVideo, onBgFadeOutEnd]);
+
 
   const handleFillChange = useCallback((fill: number) => {
     if (videoRef.current) {

@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, type Dispatch } from 'react';
+import { useState, useRef, useEffect, useCallback, type Dispatch } from 'react';
 import type { GameState, RewardOption, EquipmentItem, OpponentCinematic, Conversation } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
 import { GoldDisplay } from '../ui/GoldDisplay';
 import { ConversationOverlay } from '../Reward/ConversationOverlay';
 import { RewardOptionCard } from '../Reward/RewardOption';
 import { getRelationshipProgress, relXpToNextLevel } from '../../utils/xp';
+import { useRewardMenuKeys } from '../../hooks/useKeyboardShortcuts';
 
 interface RewardScreenProps {
   gameState: GameState;
@@ -29,6 +30,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [pendingFail, setPendingFail] = useState<(() => void) | null>(null);
   const [rewardResult, setRewardResult] = useState<RewardResult | null>(null);
+  const [focusedIndex, setFocusedIndex] = useState(0);
 
   const opponentId = lastDefeatedOpponent?.id ?? '';
   const relProgress = getRelationshipProgress(relationshipProgress, opponentId);
@@ -159,6 +161,48 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
     fail?.();
   };
 
+  // Keyboard navigation — build a flat list of selectable actions for the current view
+  const menuActions: (() => void)[] = (() => {
+    if (rewardResult || pendingConversation) return [];
+    if (menuView === 'main') return [
+      ...(skillRewards.length > 0 ? [() => setMenuView('skills')] : []),
+      () => setMenuView('interactions'),
+      ...(lootReward ? [handleLoot] : []),
+      () => dispatch({ type: 'GO_TO_SHOP' }),
+    ];
+    if (menuView === 'skills') return skillRewards.map(r => () => handleChooseSkill(r));
+    if (menuView === 'interactions') return [
+      handleChat,
+      () => setMenuView('gifts'),
+      ...(unlockedCinematics.length > 0 ? [() => setMenuView('cinematics')] : []),
+    ];
+    if (menuView === 'gifts') return availableGifts
+      .filter(g => player.gold >= g.gold)
+      .map(g => () => handleGift(g.id));
+    if (menuView === 'cinematics') return unlockedCinematics.map(c => () => handleWatchCinematic(c));
+    return [];
+  })();
+
+  const backAction: (() => void) | null = (() => {
+    if (menuView === 'main') return null;
+    if (menuView === 'gifts' || menuView === 'cinematics') return () => setMenuView('interactions');
+    return () => setMenuView('main');
+  })();
+
+  const handleKeySelect = useCallback(() => {
+    menuActions[focusedIndex]?.();
+  }, [menuActions, focusedIndex]);
+
+  useEffect(() => { setFocusedIndex(0); }, [menuView]);
+
+  useRewardMenuKeys({
+    itemCount: menuActions.length,
+    focusedIndex,
+    onNavigate: setFocusedIndex,
+    onSelect: handleKeySelect,
+    onBack: backAction,
+  });
+
   return (
     <div className="min-h-screen bg-theme-base flex flex-col items-center justify-center p-4 lg:p-6">
       <div className="w-full max-w-lg">
@@ -201,37 +245,47 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
         )}
 
         {/* Main menu */}
-        {menuView === 'main' && (
-          <div className="flex flex-col gap-3">
-            <MenuButton
-              icon="⚔️"
-              label="Skills"
-              description={skillRewards.length > 0 ? `${skillRewards.length} option${skillRewards.length > 1 ? 's' : ''} available` : 'No skills available'}
-              disabled={skillRewards.length === 0}
-              onClick={() => setMenuView('skills')}
-            />
-            <MenuButton
-              icon="💬"
-              label="Interactions"
-              description="Chat, give gifts, or watch cinematics"
-              onClick={() => setMenuView('interactions')}
-            />
-            <MenuButton
-              icon="💰"
-              label="Loot"
-              description={lootReward ? 'Gold + possible item drop' : 'No loot available'}
-              disabled={!lootReward}
-              onClick={handleLoot}
-              accent="gold"
-            />
-            <button
-              onClick={() => dispatch({ type: 'GO_TO_SHOP' })}
-              className="text-sm text-text-faint hover:text-text-muted text-center mt-2 py-2"
-            >
-              Skip → Shop
-            </button>
-          </div>
-        )}
+        {menuView === 'main' && (() => {
+          let idx = 0;
+          const skillIdx = skillRewards.length > 0 ? idx++ : -1;
+          const interactIdx = idx++;
+          const lootIdx = lootReward ? idx++ : -1;
+          const skipIdx = idx++;
+          return (
+            <div className="flex flex-col gap-3">
+              <MenuButton
+                icon="⚔️"
+                label="Skills"
+                description={skillRewards.length > 0 ? `${skillRewards.length} option${skillRewards.length > 1 ? 's' : ''} available` : 'No skills available'}
+                disabled={skillRewards.length === 0}
+                focused={focusedIndex === skillIdx && skillIdx !== -1}
+                onClick={() => setMenuView('skills')}
+              />
+              <MenuButton
+                icon="💬"
+                label="Interactions"
+                description="Chat, give gifts, or watch cinematics"
+                focused={focusedIndex === interactIdx}
+                onClick={() => setMenuView('interactions')}
+              />
+              <MenuButton
+                icon="💰"
+                label="Loot"
+                description={lootReward ? 'Gold + possible item drop' : 'No loot available'}
+                disabled={!lootReward}
+                focused={focusedIndex === lootIdx && lootIdx !== -1}
+                onClick={handleLoot}
+                accent="gold"
+              />
+              <button
+                onClick={() => dispatch({ type: 'GO_TO_SHOP' })}
+                className={`text-sm text-center mt-2 py-2 transition-colors ${focusedIndex === skipIdx ? 'text-text-bright underline' : 'text-text-faint hover:text-text-muted'}`}
+              >
+                Skip → Shop
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Skills submenu */}
         {menuView === 'skills' && (
@@ -240,6 +294,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
               <RewardOptionCard
                 key={i}
                 reward={reward}
+                focused={focusedIndex === i}
                 onClick={() => handleChooseSkill(reward)}
               />
             ))}
@@ -253,6 +308,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
               icon="💬"
               label="Chat"
               description="Have a conversation, get closer"
+              focused={focusedIndex === 0}
               onClick={handleChat}
               accent="pink"
             />
@@ -260,6 +316,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
               icon="🎁"
               label="Gift"
               description="Give a gift to deepen your bond"
+              focused={focusedIndex === 1}
               onClick={() => setMenuView('gifts')}
               accent="pink"
             />
@@ -268,6 +325,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
               label="Watch Cinematics"
               description={unlockedCinematics.length > 0 ? `${unlockedCinematics.length} unlocked` : 'None unlocked yet'}
               disabled={unlockedCinematics.length === 0}
+              focused={focusedIndex === 2 && unlockedCinematics.length > 0}
               onClick={() => setMenuView('cinematics')}
               accent="pink"
             />
@@ -280,7 +338,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
             {availableGifts.length === 0 && (
               <p className="text-text-muted text-sm text-center py-4">No gifts available.</p>
             )}
-            {availableGifts.map((gift) => {
+            {availableGifts.map((gift, i) => {
               const canAfford = player.gold >= gift.gold;
               return (
                 <MenuButton
@@ -290,6 +348,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
                   description={`${gift.gold}g · deepens your bond`}
                   disabled={!canAfford}
                   disabledReason={!canAfford ? 'Not enough gold' : undefined}
+                  focused={focusedIndex === i && canAfford}
                   onClick={() => handleGift(gift.id)}
                   accent="pink"
                 />
@@ -307,6 +366,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
                 icon="🎬"
                 label={`Scene ${i + 1}`}
                 description={c.description ?? `Relationship level ${c.level - 1}`}
+                focused={focusedIndex === i}
                 onClick={() => handleWatchCinematic(c)}
                 accent="pink"
               />
@@ -380,6 +440,18 @@ function RewardCelebrationModal({ result, onClose }: RewardCelebrationModalProps
     confirmRef.current?.focus();
     return () => cancelAnimationFrame(t);
   }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        result.onConfirm();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [result, onClose]);
 
   const handleConfirm = () => {
     result.onConfirm();
@@ -467,11 +539,12 @@ interface MenuButtonProps {
   description: string;
   disabled?: boolean;
   disabledReason?: string;
+  focused?: boolean;
   onClick: () => void;
   accent?: 'gold' | 'pink';
 }
 
-function MenuButton({ icon, label, description, disabled, disabledReason, onClick, accent }: MenuButtonProps) {
+function MenuButton({ icon, label, description, disabled, disabledReason, focused, onClick, accent }: MenuButtonProps) {
   const accentClass = accent === 'gold'
     ? 'border-yellow-600 bg-yellow-900/20 hover:bg-yellow-900/40'
     : accent === 'pink'
@@ -485,6 +558,7 @@ function MenuButton({ icon, label, description, disabled, disabledReason, onClic
       className={`
         w-full text-left rounded-xl border p-4 transition-all duration-150 flex items-center gap-4
         ${disabled ? 'opacity-40 cursor-not-allowed border-border-mid bg-theme-surface/30' : `cursor-pointer ${accentClass}`}
+        ${focused && !disabled ? 'ring-2 ring-white/60 ring-offset-1 ring-offset-transparent' : ''}
       `}
     >
       <span className="text-3xl shrink-0">{icon}</span>
@@ -494,7 +568,7 @@ function MenuButton({ icon, label, description, disabled, disabledReason, onClic
           {disabled && disabledReason ? disabledReason : description}
         </div>
       </div>
-      {!disabled && <span className="text-text-muted text-lg shrink-0">▶</span>}
+      {!disabled && <span className={`text-lg shrink-0 ${focused ? 'text-white' : 'text-text-muted'}`}>▶</span>}
     </button>
   );
 }
