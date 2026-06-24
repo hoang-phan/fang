@@ -4,6 +4,7 @@ import { Sprite } from './Sprite';
 import { useConversationAdvance } from './useConversationAdvance';
 import { getContrastColor } from '../../utils/color';
 import { ClickMiniGame } from './ClickMiniGame';
+import { WordsCatcherGame } from './WordsCatcherGame';
 import { useConversationKeys } from '../../hooks/useKeyboardShortcuts';
 
 interface ConversationOverlayProps {
@@ -29,16 +30,20 @@ export function ConversationOverlay({
 }: ConversationOverlayProps) {
   const { currentConv, current, isVeryLast, advance, bgFading, onBgFadeOutEnd } = useConversationAdvance(conversations, onComplete);
   const minigameClickRef = useRef<(() => void) | null>(null);
+  const catcherMoveLeftRef = useRef<(() => void) | null>(null);
+  const catcherMoveRightRef = useRef<(() => void) | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const advanceRef = useRef(advance);
   const isMiniGameRef = useRef(false);
+  const isWordsCatcherRef = useRef(false);
 
   useEffect(() => {
     advanceRef.current = advance;
     isMiniGameRef.current = !!(current && current.content.startsWith('(click-game'));
+    isWordsCatcherRef.current = !!(current && current.content.startsWith('(words-catcher'));
   });
 
-  useConversationKeys({ advanceRef, isMiniGameRef, miniGameClickRef: minigameClickRef });
+  useConversationKeys({ advanceRef, isMiniGameRef, miniGameClickRef: minigameClickRef, isWordsCatcherRef, catcherMoveLeftRef, catcherMoveRightRef });
 
   const isConversationVideo = currentConv?.backgroundUrl?.endsWith('.mp4');
 
@@ -69,12 +74,16 @@ export function ConversationOverlay({
 
   const isHero = current.role === 'hero';
   const isMinigame = current.content.startsWith('(click-game');
-  const isDialogueMode = !isMinigame && current.content !== '(...)';
+  const isWordsCatcher = current.content.startsWith('(words-catcher');
+  const isAnyMinigame = isMinigame || isWordsCatcher;
+  const isDialogueMode = !isAnyMinigame && current.content !== '(...)';
   const advanceLabel = isVeryLast ? 'Close ▼' : 'Continue ▼';
   const speaker = speakerLabel(current.role, opponentName, heroName);
 
   const handleOuterClick = isMinigame
     ? () => minigameClickRef.current?.()
+    : isWordsCatcher
+    ? undefined
     : advance;
 
   const isConversationImage = currentConv.backgroundUrl && !isConversationVideo;
@@ -103,9 +112,9 @@ export function ConversationOverlay({
           muted
           loop
           className="absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
-          style={{ opacity: isMinigame ? 0 : 1 }}
+          style={{ opacity: isAnyMinigame ? 0 : 1 }}
           onLoadedMetadata={() => {
-            if (videoRef.current && isMinigame) {
+            if (videoRef.current && isAnyMinigame) {
               videoRef.current.playbackRate = 0;
               videoRef.current.style.opacity = '0';
             } else if (videoRef.current) {
@@ -121,6 +130,17 @@ export function ConversationOverlay({
         </div>
       )}
 
+      {isWordsCatcher && (
+        <WordsCatcherGame
+          description={current.content.match(/\(words-catcher:([^)]*)\)/)?.[1] ?? ''}
+          onWin={advance}
+          onLose={onFail ?? advance}
+          onMoveLeft={fn => { catcherMoveLeftRef.current = fn; }}
+          onMoveRight={fn => { catcherMoveRightRef.current = fn; }}
+          onLevelChange={handleFillChange}
+        />
+      )}
+
       {isMinigame ? (
         <ClickMiniGame
           description={current.content.match(/\(click-game:([^)]*)\)/)?.[1] ?? ''}
@@ -129,7 +149,7 @@ export function ConversationOverlay({
           registerClick={fn => { minigameClickRef.current = fn; }}
           onFillChange={handleFillChange}
         />
-      ) : isDialogueMode ? (
+      ) : isWordsCatcher ? null : isDialogueMode ? (
         <div className="relative shrink-0 pb-1 px-4 flex flex-col items-start mx-auto w-full">
           <div
             className="w-full rounded-xl rounded-tl-none border border-border-mid p-5 shadow-lg"

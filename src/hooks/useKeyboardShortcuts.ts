@@ -25,11 +25,14 @@ const KEYS_SELECT = ['z', 'Z'];
 const KEYS_BACK = ['Escape'];
 
 // ── Conversation overlay ──────────────────────────────────────────────────────
-// Z          advance chat
-// F          trigger minigame click (same as tapping during a click-game)
+// Z                    advance chat
+// F                    trigger minigame click (same as tapping during a click-game)
+// ←/→ or A/D          move catcher (words-catcher mini-game)
 
 const KEYS_ADVANCE = ['z', 'Z'];
 const KEYS_CLICK_MINIGAME = ['f', 'F'];
+const KEYS_CATCHER_LEFT = ['ArrowLeft', 'a', 'A'];
+const KEYS_CATCHER_RIGHT = ['ArrowRight', 'd', 'D'];
 
 interface OpponentSelectKeys {
   opponents: { id: string }[];
@@ -72,13 +75,20 @@ interface ConversationKeys {
   advanceRef: React.RefObject<() => void>;
   isMiniGameRef: React.RefObject<boolean>;
   miniGameClickRef: React.RefObject<(() => void) | null>;
+  isWordsCatcherRef: React.RefObject<boolean>;
+  catcherMoveLeftRef: React.RefObject<(() => void) | null>;
+  catcherMoveRightRef: React.RefObject<(() => void) | null>;
 }
 
-export function useConversationKeys({ advanceRef, isMiniGameRef, miniGameClickRef }: ConversationKeys) {
+export function useConversationKeys({ advanceRef, isMiniGameRef, miniGameClickRef, isWordsCatcherRef, catcherMoveLeftRef, catcherMoveRightRef }: ConversationKeys) {
   useEffect(() => {
     if (!isDesktop()) return;
 
     const handler = (e: KeyboardEvent) => {
+      if (isWordsCatcherRef.current) {
+        if (KEYS_CATCHER_LEFT.includes(e.key)) { e.preventDefault(); catcherMoveLeftRef.current?.(); return; }
+        if (KEYS_CATCHER_RIGHT.includes(e.key)) { e.preventDefault(); catcherMoveRightRef.current?.(); return; }
+      }
       if (KEYS_ADVANCE.includes(e.key)) {
         if (isMiniGameRef.current) {
           miniGameClickRef.current?.();
@@ -94,7 +104,7 @@ export function useConversationKeys({ advanceRef, isMiniGameRef, miniGameClickRe
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 // ── Battle screen keys ────────────────────────────────────────────────────────
