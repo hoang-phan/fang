@@ -91,8 +91,14 @@ export function ConversationOverlay({
           autoPlay
           muted
           loop
-          className="opacity-0 absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
-          onLoadedMetadata={() => { if (videoRef.current) { videoRef.current.playbackRate = 0; videoRef.current.style.opacity = '0'; } }}
+          className="absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
+          style={{ opacity: isMinigame ? 0 : (bgFading ? 0 : 1) }}
+          onLoadedMetadata={() => {
+            if (videoRef.current && isMinigame) {
+              videoRef.current.playbackRate = 0;
+              videoRef.current.style.opacity = '0';
+            }
+          }}
         />
       )}
 
