@@ -92,11 +92,13 @@ export function ConversationOverlay({
           muted
           loop
           className="absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
-          style={{ opacity: isMinigame ? 0 : (bgFading ? 0 : 1) }}
+          style={{ opacity: isMinigame ? 0 : 1 }}
           onLoadedMetadata={() => {
             if (videoRef.current && isMinigame) {
               videoRef.current.playbackRate = 0;
               videoRef.current.style.opacity = '0';
+            } else if (videoRef.current) {
+              videoRef.current.style.opacity = '1';
             }
           }}
         />
