@@ -113,8 +113,8 @@ export function ConversationOverlay({
       ) : isDialogueMode ? (
         <div className="relative shrink-0 pb-1 px-4 flex flex-col items-start mx-auto w-full">
           <div
-            className="w-full rounded-xl rounded-tl-none border border-border-mid bg-theme-dialogue p-5 shadow-lg"
-            style={{ minHeight: '140px' }}
+            className="w-full rounded-xl rounded-tl-none border border-border-mid p-5 shadow-lg"
+            style={{ minHeight: '140px', backgroundColor: isConversationVideo ? '#FDC9D411' : '#FDC9D4' }}
           >
             <div className="flex flex-col gap-3 h-full">
               {speaker && (
@@ -122,7 +122,14 @@ export function ConversationOverlay({
                   {speaker}
                 </div>
               )}
-              <p className="text-text-bright text-xl font-bold leading-relaxed flex-1" style={{textShadow: '-1px 0 black, 0 1px black, 1px 0 black, 0 -1px black'}}>{current.content.replaceAll('{{PLAYER}}', heroName)}</p>
+              <p
+                className="text-text-bright text-xl font-bold leading-relaxed flex-1"
+                style={{
+                  color: isConversationVideo ? '#ffe0ee' : '#7a4060',
+                  textShadow: isConversationVideo ? '-1px 0 black, 0 1px black, 1px 0 black, 0 -1px black' : null
+                }}
+              >
+                {current.content.replaceAll('{{PLAYER}}', heroName)}</p>
               <div className="flex justify-end">
                 <button onClick={advance} className="text-xs text-text-faint hover:text-text-muted transition-colors">
                   {advanceLabel}
