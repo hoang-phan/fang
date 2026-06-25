@@ -46,6 +46,8 @@ export function ConversationOverlay({
   useConversationKeys({ advanceRef, isMiniGameRef, miniGameClickRef: minigameClickRef, isWordsCatcherRef, catcherMoveLeftRef, catcherMoveRightRef });
 
   const isConversationVideo = currentConv?.backgroundUrl?.endsWith('.mp4');
+  const fileParts = currentConv?.backgroundUrl?.split('/');
+  const isEBackground = fileParts ? fileParts[fileParts.length - 1].startsWith('e') : false;
 
   useEffect(() => {
     if (bgFading && isConversationVideo && videoRef.current) {
@@ -98,7 +100,7 @@ export function ConversationOverlay({
         <img
           src={currentConv.backgroundUrl}
           alt="background"
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500"
+          className={`absolute inset-0 w-full h-full transition-opacity duration-500 ${isEBackground ? 'object-contain' : 'object-cover'}`}
           style={{ opacity: bgFading ? 0 : 1 }}
           onTransitionEnd={bgFading ? onBgFadeOutEnd : undefined}
         />
