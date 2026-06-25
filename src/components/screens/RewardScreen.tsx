@@ -381,6 +381,7 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
           conversations={pendingConversation}
           opponentName={lastDefeatedOpponent?.name ?? ''}
           heroName={player.name}
+          opponentSpriteUrl={lastDefeatedOpponent?.avatars?.[0]}
           onComplete={handleConversationComplete}
           onFail={pendingFail ? handleConversationFail : undefined}
         />

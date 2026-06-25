@@ -5,6 +5,7 @@ import { useConversationAdvance } from './useConversationAdvance';
 import { getContrastColor } from '../../utils/color';
 import { ClickMiniGame } from './ClickMiniGame';
 import { WordsCatcherGame } from './WordsCatcherGame';
+import { ShufflePuzzleGame } from './ShufflePuzzleGame';
 import { useConversationKeys } from '../../hooks/useKeyboardShortcuts';
 
 interface ConversationOverlayProps {
@@ -43,6 +44,8 @@ export function ConversationOverlay({
     isWordsCatcherRef.current = !!(current && current.content.startsWith('(words-catcher'));
   });
 
+  const isShufflePuzzle = !!(current && current.content.startsWith('(shuffle-puzzle'));
+
   useConversationKeys({ advanceRef, isMiniGameRef, miniGameClickRef: minigameClickRef, isWordsCatcherRef, catcherMoveLeftRef, catcherMoveRightRef });
 
   const isConversationVideo = currentConv?.backgroundUrl?.endsWith('.mp4');
@@ -77,14 +80,14 @@ export function ConversationOverlay({
   const isHero = current.role === 'hero';
   const isMinigame = current.content.startsWith('(click-game');
   const isWordsCatcher = current.content.startsWith('(words-catcher');
-  const isAnyMinigame = isMinigame || isWordsCatcher;
+  const isAnyMinigame = isMinigame || isWordsCatcher || isShufflePuzzle;
   const isDialogueMode = !isAnyMinigame && current.content !== '(...)';
   const advanceLabel = isVeryLast ? 'Close ▼' : 'Continue ▼';
   const speaker = speakerLabel(current.role, opponentName, heroName);
 
   const handleOuterClick = isMinigame
     ? () => minigameClickRef.current?.()
-    : isWordsCatcher
+    : isWordsCatcher || isShufflePuzzle
     ? undefined
     : advance;
 
@@ -140,6 +143,16 @@ export function ConversationOverlay({
           onMoveLeft={fn => { catcherMoveLeftRef.current = fn; }}
           onMoveRight={fn => { catcherMoveRightRef.current = fn; }}
           onLevelChange={handleFillChange}
+        />
+      )}
+
+      {isShufflePuzzle && (
+        <ShufflePuzzleGame
+          description={current.content.match(/\(shuffle-puzzle:([^)]*)\)/)?.[1] ?? 'puzzle'}
+          imageUrl={current.sprites[0]?.url ?? ''}
+          onWin={advance}
+          onLose={onFail ?? advance}
+          onProgressChange={handleFillChange}
         />
       )}
 
