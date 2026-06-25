@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 import type { OpponentDef, OpponentCinematic, OpponentGift, Conversation, EquipmentItem } from '../types';
+import {
+  saveOpponentsCache, loadOpponentsCache,
+  saveItemsCache, loadItemsCache,
+} from '../utils/storage';
 
 export const API_BASE = 'http://localhost:3000';
 
@@ -18,30 +22,39 @@ function prefixConversations(conversations?: Conversation[]): Conversation[] | u
   }));
 }
 
+function enrichOpponents(data: OpponentDef[]): OpponentDef[] {
+  return data.map(opp => ({
+    baseDefense: 0,
+    ...opp,
+    avatars: opp.avatars?.map(path => prefixUrl(path)),
+    cinematics: opp.cinematics?.map((c: OpponentCinematic) => ({
+      ...c,
+      conversations: prefixConversations(c.conversations),
+    })),
+    gifts: opp.gifts?.map((g: OpponentGift) => ({
+      ...g,
+      conversations: prefixConversations(g.conversations),
+    })),
+    conversations: prefixConversations(opp.conversations),
+  }));
+}
+
 export function useOpponents(): { opponents: OpponentDef[]; loading: boolean } {
-  const [opponents, setOpponents] = useState<OpponentDef[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = loadOpponentsCache();
+  const [opponents, setOpponents] = useState<OpponentDef[]>(cached ?? []);
+  const [loading, setLoading] = useState(cached === null);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/v1/opponents`)
       .then(r => r.json())
       .then((data: OpponentDef[]) => {
-        setOpponents(data.map(opp => ({
-          baseDefense: 0,
-          ...opp,
-          avatars: opp.avatars?.map(path => prefixUrl(path)),
-          cinematics: opp.cinematics?.map((c: OpponentCinematic) => ({
-            ...c,
-            conversations: prefixConversations(c.conversations),
-          })),
-          gifts: opp.gifts?.map((g: OpponentGift) => ({
-            ...g,
-            conversations: prefixConversations(g.conversations),
-          })),
-          conversations: prefixConversations(opp.conversations),
-        })));
+        const enriched = enrichOpponents(data);
+        saveOpponentsCache(enriched);
+        setOpponents(enriched);
       })
-      .catch(() => {})
+      .catch(() => {
+        // Server unreachable — cached data (if any) is already in state
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -49,14 +62,20 @@ export function useOpponents(): { opponents: OpponentDef[]; loading: boolean } {
 }
 
 export function useItems(): { items: EquipmentItem[]; loading: boolean } {
-  const [items, setItems] = useState<EquipmentItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cached = loadItemsCache();
+  const [items, setItems] = useState<EquipmentItem[]>(cached ?? []);
+  const [loading, setLoading] = useState(cached === null);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/v1/items`)
       .then(r => r.json())
-      .then((data: EquipmentItem[]) => setItems(data))
-      .catch(() => {})
+      .then((data: EquipmentItem[]) => {
+        saveItemsCache(data);
+        setItems(data);
+      })
+      .catch(() => {
+        // Server unreachable — cached data (if any) is already in state
+      })
       .finally(() => setLoading(false));
   }, []);
 

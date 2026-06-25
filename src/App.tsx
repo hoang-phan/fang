@@ -1,10 +1,12 @@
 import { useGame } from './hooks/useGame';
 import { useOpponents, useItems } from './hooks/useOpponents';
+import { StartScreen } from './components/screens/StartScreen';
 import { NameEntryScreen } from './components/screens/NameEntryScreen';
 import { OpponentSelectScreen } from './components/screens/OpponentSelectScreen';
 import { BattleScreen } from './components/screens/BattleScreen';
 import { RewardScreen } from './components/screens/RewardScreen';
 import { ShopScreen } from './components/screens/ShopScreen';
+import { GalleryScreen } from './components/screens/GalleryScreen';
 
 function App() {
   const { state, dispatch } = useGame();
@@ -20,6 +22,9 @@ function App() {
   }
 
   switch (state.screen) {
+    case 'start':
+      return <StartScreen gameState={state} dispatch={dispatch} />;
+
     case 'name_entry':
       return <NameEntryScreen dispatch={dispatch} />;
 
@@ -38,6 +43,9 @@ function App() {
 
     case 'shop':
       return <ShopScreen gameState={state} dispatch={dispatch} />;
+
+    case 'gallery':
+      return <GalleryScreen gameState={state} opponents={opponents} dispatch={dispatch} />;
 
     case 'opponent_select':
     default:

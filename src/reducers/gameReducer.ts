@@ -26,6 +26,9 @@ export type GameAction =
   | { type: 'CHOOSE_REWARD'; reward: RewardOption; shopItems?: EquipmentItem[] }
   | { type: 'GO_TO_SHOP'; shopItems?: EquipmentItem[] }
   | { type: 'GO_TO_OPPONENT_SELECT' }
+  | { type: 'GO_TO_START_SCREEN' }
+  | { type: 'GO_TO_GALLERY' }
+  | { type: 'NEW_GAME' }
   | { type: 'BUY_SHOP_ITEM'; itemId: string }
   | { type: 'EQUIP_MOVE'; move: Move; slot: 0 | 1 | 2 | 3 }
   | { type: 'UNEQUIP_MOVE'; slot: 0 | 1 | 2 | 3 }
@@ -269,6 +272,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'GO_TO_OPPONENT_SELECT': {
       return { ...state, screen: 'opponent_select', selectedOpponentId: null, lastDefeatedOpponent: null };
+    }
+
+    case 'GO_TO_START_SCREEN': {
+      return { ...state, screen: 'start' };
+    }
+
+    case 'GO_TO_GALLERY': {
+      return { ...state, screen: 'gallery' };
+    }
+
+    case 'NEW_GAME': {
+      return { ...DEFAULT_GAME_STATE, screen: 'name_entry' };
     }
 
     case 'BUY_SHOP_ITEM': {
