@@ -98,7 +98,7 @@ export function ConversationOverlay({
         <img
           src={currentConv.backgroundUrl}
           alt="background"
-          className="absolute inset-0 w-full h-full object-contain transition-opacity duration-500"
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500"
           style={{ opacity: bgFading ? 0 : 1 }}
           onTransitionEnd={bgFading ? onBgFadeOutEnd : undefined}
         />
