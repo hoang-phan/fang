@@ -1,6 +1,6 @@
 import type { Dispatch } from 'react';
 import { useEffect, useRef } from 'react';
-import type { BattleState, OpponentDef } from '../../types';
+import type { BattleState, OpponentDef, ElementType } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
 import { useBattle } from '../../hooks/useBattle';
 import { useBattleKeys } from '../../hooks/useKeyboardShortcuts';
@@ -9,6 +9,19 @@ import { CombatantCard } from '../battle/CombatantCard';
 import { BattleLog } from '../battle/BattleLog';
 import { ActionPanel } from '../battle/ActionPanel';
 import { ELEMENT_COLORS } from '../../utils/color';
+
+const TYPE_ICONS: Record<ElementType, string> = {
+  normal:   '⚪',
+  fire:     '🔥',
+  water:    '💧',
+  electric: '⚡',
+  grass:    '🌿',
+  ice:      '❄️',
+  poison:   '☠️',
+  earth:    '🪨',
+  dark:     '🌑',
+  psychic:  '🔮',
+};
 
 interface BattleScreenProps {
   initialBattleState: BattleState;
@@ -150,11 +163,18 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
           attackColor && state.lastAttackSide && (opponentDamaged || playerDamaged) ? (
             <div
               key={backdropKey}
-              className={`absolute inset-0 pointer-events-none z-10 ${
+              className={`absolute inset-0 pointer-events-none z-10 flex items-center justify-center ${
                 state.lastAttackSide === 'player' ? 'attack-backdrop-up' : 'attack-backdrop-down'
               }`}
               style={{ backgroundColor: attackColor }}
-            />
+            >
+              <span
+                className="select-none leading-none"
+                style={{ fontSize: '20rem', opacity: 0.2 }}
+              >
+                {state.lastAttackElement ? TYPE_ICONS[state.lastAttackElement] : null}
+              </span>
+            </div>
           ) : null
         }
         middle={<BattleLog entries={state.log} />}
