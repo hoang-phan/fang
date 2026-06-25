@@ -23,7 +23,7 @@ export type GameAction =
   | { type: 'START_BATTLE'; opponentDef: OpponentDef }
   | { type: 'BATTLE_VICTORY'; finalBattleState: BattleState; goldSeed: number }
   | { type: 'BATTLE_DEFEAT' }
-  | { type: 'CHOOSE_REWARD'; reward: RewardOption; shopItems?: EquipmentItem[] }
+  | { type: 'CHOOSE_REWARD'; reward: RewardOption; shopItems?: EquipmentItem[]; replacePoolMoveId?: string }
   | { type: 'GO_TO_SHOP'; shopItems?: EquipmentItem[] }
   | { type: 'GO_TO_OPPONENT_SELECT' }
   | { type: 'GO_TO_START_SCREEN' }
@@ -247,8 +247,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           player = { ...player, moves: newMoves };
         } else if (player.learnedPool.length < 2) {
           player = { ...player, learnedPool: [...player.learnedPool, { ...reward.move, level: 1 }] };
+        } else if (action.replacePoolMoveId) {
+          // All 6 slots full — player chose to replace a specific backup move
+          const newPool = player.learnedPool.map(m =>
+            m.id === action.replacePoolMoveId ? { ...reward.move!, level: 1 } : m
+          );
+          player = { ...player, learnedPool: newPool };
         }
-        // If all 4 slots and both pool slots are full, silently skip (reward is forfeited).
       } else if (reward.type === 'upskill' && reward.move) {
         const moveId = reward.move.id;
         const newMoves = player.moves.map(m =>

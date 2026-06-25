@@ -13,7 +13,7 @@ interface RewardScreenProps {
   shopItems?: EquipmentItem[];
 }
 
-type MenuView = 'main' | 'skills' | 'interactions' | 'gifts' | 'cinematics';
+type MenuView = 'main' | 'skills' | 'interactions' | 'gifts' | 'cinematics' | 'replace_skill';
 
 interface RewardResult {
   icon: string;
@@ -26,6 +26,7 @@ interface RewardResult {
 export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenProps) {
   const { pendingRewards, player, lastDefeatedOpponent, relationshipProgress } = gameState;
   const [menuView, setMenuView] = useState<MenuView>('main');
+  const [pendingLearnReward, setPendingLearnReward] = useState<RewardOption | null>(null);
   const [pendingConversation, setPendingConversation] = useState<Conversation[] | null>(null);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [pendingFail, setPendingFail] = useState<(() => void) | null>(null);
@@ -45,10 +46,19 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
 
   const availableGifts = lastDefeatedOpponent?.gifts ?? [];
 
+  const isSkillsFull = player.moves.every(m => m !== null) && player.learnedPool.length >= 2;
+
   const handleChooseSkill = (reward: RewardOption) => {
     const isNew = reward.type === 'learn_new';
     const moveName = reward.move?.name ?? reward.label;
     const moveIcon = reward.move?.icon ?? '⚔️';
+
+    if (isNew && isSkillsFull) {
+      setPendingLearnReward(reward);
+      setMenuView('replace_skill');
+      return;
+    }
+
     setRewardResult({
       icon: moveIcon,
       title: isNew ? 'New Skill Learned!' : 'Skill Upgraded!',
@@ -58,6 +68,23 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
       ],
       onConfirm: () => dispatch({ type: 'CHOOSE_REWARD', reward, shopItems }),
     });
+  };
+
+  const handleReplaceSkill = (replacePoolMoveId: string) => {
+    if (!pendingLearnReward) return;
+    const moveName = pendingLearnReward.move?.name ?? pendingLearnReward.label;
+    const moveIcon = pendingLearnReward.move?.icon ?? '⚔️';
+    const replacedMove = player.learnedPool.find(m => m.id === replacePoolMoveId);
+    setRewardResult({
+      icon: moveIcon,
+      title: 'New Skill Learned!',
+      lines: [
+        `You learned ${moveName}!`,
+        replacedMove ? `Replaced: ${replacedMove.name}` : pendingLearnReward.description,
+      ],
+      onConfirm: () => dispatch({ type: 'CHOOSE_REWARD', reward: pendingLearnReward, shopItems, replacePoolMoveId }),
+    });
+    setPendingLearnReward(null);
   };
 
   const handleLoot = () => {
@@ -180,12 +207,14 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
       .filter(g => player.gold >= g.gold)
       .map(g => () => handleGift(g.id));
     if (menuView === 'cinematics') return unlockedCinematics.map(c => () => handleWatchCinematic(c));
+    if (menuView === 'replace_skill') return player.learnedPool.map(m => () => handleReplaceSkill(m.id));
     return [];
   })();
 
   const backAction: (() => void) | null = (() => {
     if (menuView === 'main') return null;
     if (menuView === 'gifts' || menuView === 'cinematics') return () => setMenuView('interactions');
+    if (menuView === 'replace_skill') return () => { setPendingLearnReward(null); setMenuView('skills'); };
     return () => setMenuView('main');
   })();
 
@@ -237,7 +266,11 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
         {/* Back button for submenus */}
         {menuView !== 'main' && (
           <button
-            onClick={() => setMenuView(menuView === 'gifts' || menuView === 'cinematics' ? 'interactions' : 'main')}
+            onClick={() => {
+              if (menuView === 'gifts' || menuView === 'cinematics') setMenuView('interactions');
+              else if (menuView === 'replace_skill') { setPendingLearnReward(null); setMenuView('skills'); }
+              else setMenuView('main');
+            }}
             className="mb-4 text-sm text-text-muted hover:text-text-bright flex items-center gap-1"
           >
             ← Back
@@ -369,6 +402,26 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
                 focused={focusedIndex === i}
                 onClick={() => handleWatchCinematic(c)}
                 accent="pink"
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Replace backup skill submenu */}
+        {menuView === 'replace_skill' && pendingLearnReward && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-text-muted mb-1">
+              All skill slots are full. Choose a backup skill to replace with{' '}
+              <span className="text-text-bright font-semibold">{pendingLearnReward.move?.name ?? pendingLearnReward.label}</span>:
+            </p>
+            {player.learnedPool.map((move, i) => (
+              <MenuButton
+                key={move.id}
+                icon={move.icon ?? '⚔️'}
+                label={move.name}
+                description={`Lv${move.level} · ${move.mpCost} MP`}
+                focused={focusedIndex === i}
+                onClick={() => handleReplaceSkill(move.id)}
               />
             ))}
           </div>
