@@ -147,6 +147,7 @@ export interface ActiveEffect {
   stunned: boolean;      // if true, target skips their action this turn
   turnsLeft: number;     // ticks remaining
   target: 'player' | 'opponent';
+  skipFirstTick?: boolean; // true on shield effects applied this round; prevents the immediate TICK_RESOLVE from consuming a turn
 }
 
 export interface BattleState {

@@ -72,8 +72,8 @@ function resolveOpponentAutoAttack(state: BattleState): AttackResult {
   const { def } = state.opponent;
   const spread = def.baseDamage * def.damageVariance;
   const autoBase = Math.round(def.baseDamage + (Math.random() * spread * 2 - spread));
-  // Apply baseDefense stats: attacker baseDamage is already baked into autoBase; subtract player baseDefense
-  const rawDmg = Math.max(1, autoBase - state.player.baseDefense);
+  // Defense is halved to prevent it from being too dominant; attacker baseDamage already baked into autoBase
+  const rawDmg = Math.max(1, autoBase - Math.floor(state.player.baseDefense * 0.5));
   const shield = sumShield(state.activeEffects, 'player');
   const dmg = Math.max(0, rawDmg - shield);
 
@@ -104,7 +104,7 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
       if (state.playerStunned) return state;
 
       const elementalDmg = calcMoveEffect(BASIC_ATTACK, state.opponent.def.type, state.player.stats);
-      const rawDmg = Math.max(1, elementalDmg + state.player.baseDamage - state.opponent.def.baseDefense);
+      const rawDmg = Math.max(1, elementalDmg + state.player.baseDamage - Math.floor(state.opponent.def.baseDefense * 0.5));
       const shield = sumShield(state.activeEffects, 'opponent');
       const dmg = Math.max(0, rawDmg - shield);
       const newOpponentHp = Math.max(0, state.opponent.hp - dmg);
@@ -213,8 +213,6 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
       let nextOpponentStunned = false;
 
       for (const eff of state.activeEffects) {
-        const expiring = eff.turnsLeft <= 1;
-
         if (eff.damage > 0) {
           if (eff.target === 'player') {
             newPlayerHp = Math.max(0, newPlayerHp - eff.damage);
@@ -230,13 +228,18 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
           else nextOpponentStunned = true;
         }
 
-        if (!expiring) {
-          remainingEffects.push({ ...eff, turnsLeft: eff.turnsLeft - 1 });
-        } else if (eff.defense > 0) {
-          newLogs.push(mkLog(
-            `${eff.target === 'player' ? 'Your' : `${state.opponent.def.name}'s`} ${eff.sourceName} shield faded!`,
-            'system',
-          ));
+        if (eff.skipFirstTick) {
+          remainingEffects.push({ ...eff, skipFirstTick: false });
+        } else {
+          const newTurnsLeft = eff.turnsLeft - 1;
+          if (newTurnsLeft > 0) {
+            remainingEffects.push({ ...eff, turnsLeft: newTurnsLeft });
+          } else if (eff.defense > 0) {
+            newLogs.push(mkLog(
+              `${eff.target === 'player' ? 'Your' : `${state.opponent.def.name}'s`} ${eff.sourceName} shield faded!`,
+              'system',
+            ));
+          }
         }
       }
 

@@ -52,7 +52,7 @@ export const DEFAULT_PLAYER: PlayerStats = {
   xp: 0,
   statPoints: 0,
   stats: {},
-  baseDamage: 50,
+  baseDamage: 0,
   baseDefense: 0,
   inventory: [],
   equipped: {},
@@ -155,14 +155,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ? state.defeatedOpponents
         : [...state.defeatedOpponents, opponentDef.id];
 
-      // Player gains XP for winning
+      // Player gains XP for winning.
+      // Use state.player (canonical, no equipment bonuses) as the base — finalBattleState.player
+      // is an ephemeral snapshot with equipment stats baked in and must not be persisted.
       const playerXpGain = calcPlayerXpGain(opponentDef, true);
-      const playerXpResult = applyXp(finalBattleState.player.level, finalBattleState.player.xp, playerXpGain);
+      const playerXpResult = applyXp(state.player.level, state.player.xp, playerXpGain);
       const updatedPlayer: PlayerStats = {
-        ...finalBattleState.player,
+        ...state.player,
         level: playerXpResult.level,
         xp: playerXpResult.xp,
-        statPoints: finalBattleState.player.statPoints + playerXpResult.levelsGained * 5,
+        statPoints: state.player.statPoints + playerXpResult.levelsGained,
       };
 
       // Opponent gains XP for losing (small amount)
@@ -198,7 +200,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state.player,
         level: playerXpResult.level,
         xp: playerXpResult.xp,
-        statPoints: state.player.statPoints + playerXpResult.levelsGained * 5,
+        statPoints: state.player.statPoints + playerXpResult.levelsGained,
       };
 
       // Opponent gains big XP for winning

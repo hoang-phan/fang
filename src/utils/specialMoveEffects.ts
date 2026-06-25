@@ -84,8 +84,9 @@ export function applyHeal(ctx: MoveContext, statBonuses?: PlayerStatBonuses): Mo
 export function applyDamage(ctx: MoveContext, defenderType: ElementType, statBonuses?: PlayerStatBonuses): MoveContext {
   if (ctx.move.baseDamage <= 0) return ctx;
   const elementalDamage = calcMoveEffect(ctx.move, defenderType, statBonuses);
-  // Total pre-shield damage: attacker's baseDamage bonus - defender's baseDefense + elemental damage
-  const rawEffect = Math.max(1, elementalDamage + ctx.attackerBaseDamage - ctx.defenderBaseDefense);
+  // Special moves scale only through elemental bonuses + move level; baseDamage applies to basic attack only
+  // Defense is halved to prevent it from being too dominant vs. elemental builds
+  const rawEffect = Math.max(1, elementalDamage - Math.floor(ctx.defenderBaseDefense * 0.5));
   const shield = sumShield(ctx.activeEffects, ctx.targetSide);
   const damage = Math.max(0, rawEffect - shield);
   const effectiveness = getTypeEffectiveness(ctx.move.type, defenderType);
@@ -188,6 +189,7 @@ export function applyShield(ctx: MoveContext): MoveContext {
       stunned: false,
       turnsLeft: turns,
       target: ctx.casterSide,
+      skipFirstTick: true,
     }],
     logs: [...ctx.logs, mkLog(logMsg, 'system')],
   };

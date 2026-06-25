@@ -93,9 +93,9 @@ export function calcMoveEffect(
   const raw = base + (Math.random() * spread * 2 - spread);
   let result = base < 0 ? Math.round(raw) : Math.max(1, Math.round(raw));
 
-  // Apply flat stat bonus for the move's element type (damage moves only)
+  // Apply elemental stat bonus (1.5× multiplier so element builds are worthwhile)
   if (statBonuses && move.baseDamage > 0) {
-    result += statBonuses?.[move.type] ?? 0;
+    result += Math.round((statBonuses?.[move.type] ?? 0) * 1.2);
     result = Math.max(1, result);
   }
 
@@ -118,7 +118,7 @@ export function moveDamageRange(
   const levelMult = 1 + (move.level - 1) * 0.25;
   const base = move.baseDamage * levelMult;
   const spread = Math.abs(base) * move.damageVariance;
-  const bonus = (statBonuses && move.baseDamage > 0) ? (statBonuses[move.type] ?? 0) : 0;
+  const bonus = (statBonuses && move.baseDamage > 0) ? Math.round((statBonuses[move.type] ?? 0) * 1.5) : 0;
 
   let lo = base - spread + bonus;
   let hi = base + spread + bonus;
