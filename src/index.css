@@ -171,3 +171,37 @@ body {
 .element-flash {
   animation: element-flash 0.5s ease-in-out forwards;
 }
+
+/* Avatar damage flash — color overlay over the avatar only */
+@keyframes avatar-damage-flash {
+  0%   { opacity: 0; }
+  20%  { opacity: 0.75; }
+  60%  { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
+.avatar-damage-flash {
+  animation: avatar-damage-flash 0.45s ease-in-out forwards;
+}
+
+/* Shield card flash — full-card overlay on first turn shield is applied */
+@keyframes shield-card-flash {
+  0%   { opacity: 0; }
+  20%  { opacity: 0.25; }
+  60%  { opacity: 0.18; }
+  100% { opacity: 0; }
+}
+
+.shield-card-flash {
+  animation: shield-card-flash 0.5s ease-in-out forwards;
+}
+
+/* Shield border glow — persistent until effect expires */
+@keyframes shield-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--shield-color, #60a5fa), 0 0 10px 2px var(--shield-color, #60a5fa); }
+  50%       { box-shadow: 0 0 0 3px var(--shield-color, #60a5fa), 0 0 18px 6px var(--shield-color, #60a5fa); }
+}
+
+.shield-active {
+  animation: shield-pulse 1.5s ease-in-out infinite;
+}

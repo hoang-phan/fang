@@ -71,7 +71,7 @@ export function OpponentCard({ opp, oppProgress, unlocked, defeated, selected, d
             <div className="flex-1">
               <ProgressBar label="" value={oppProgress.xp} max={xpNeeded} color="bg-purple-500" />
             </div>
-            <span className="text-xs text-text-faint">{oppProgress.xp}/{xpNeeded} XP</span>
+            <span className="text-xs text-text-faint">XP</span>
           </div>
         </div>
         {selected && interactive && <span className="text-accent text-xl shrink-0">▶</span>}

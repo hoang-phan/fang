@@ -55,9 +55,23 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
     }
   }, [state.phase]);
 
-  const opponentFlashing = state.lastPlayerDamage != null;
-  const playerFlashing = state.lastOpponentDamage != null;
+  const opponentDamaged = state.lastPlayerDamage != null && state.lastPlayerDamage > 0;
+  const playerDamaged = state.lastOpponentDamage != null && state.lastOpponentDamage > 0;
   const attackColor = state.lastAttackElement ? ELEMENT_COLORS[state.lastAttackElement] : undefined;
+
+  const playerShieldEffect = state.activeEffects.find(e => e.target === 'player' && e.defense > 0);
+  const opponentShieldEffect = state.activeEffects.find(e => e.target === 'opponent' && e.defense > 0);
+  const playerHasShield = playerShieldEffect != null;
+  const opponentHasShield = opponentShieldEffect != null;
+  const playerShieldColor = playerShieldEffect ? ELEMENT_COLORS[playerShieldEffect.sourceType] : undefined;
+  const opponentShieldColor = opponentShieldEffect ? ELEMENT_COLORS[opponentShieldEffect.sourceType] : undefined;
+
+  const playerShieldJustApplied = state.activeEffects.some(e => e.target === 'player' && e.defense > 0 && e.skipFirstTick);
+  const opponentShieldJustApplied = state.activeEffects.some(e => e.target === 'opponent' && e.defense > 0 && e.skipFirstTick);
+
+  // Flash keys increment each time damage is received to replay the animation
+  const playerFlashKey = playerDamaged ? state.turn : null;
+  const opponentFlashKey = opponentDamaged ? state.turn : null;
 
   const phaseLabel = (() => {
     switch (state.phase) {
@@ -108,9 +122,12 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
             )}
             hp={state.opponent.hp}
             maxHp={state.opponent.def.maxHp}
-            isFlashing={opponentFlashing}
-            flashColor={opponentFlashing ? attackColor : undefined}
+            damageFlashKey={opponentFlashKey}
+            damageFlashColor={attackColor}
+            hasShield={opponentHasShield}
+            shieldFlashKey={opponentShieldJustApplied ? state.turn : null}
             side="opponent"
+            shieldColor={opponentShieldColor}
           />
         }
         player={
@@ -121,13 +138,16 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
             maxHp={state.player.maxHp}
             mp={state.player.mp}
             maxMp={state.player.maxMp}
-            isFlashing={playerFlashing}
-            flashColor={playerFlashing ? attackColor : undefined}
+            damageFlashKey={playerFlashKey}
+            damageFlashColor={attackColor}
+            hasShield={playerHasShield}
+            shieldFlashKey={playerShieldJustApplied ? state.turn : null}
             side="player"
+            shieldColor={playerShieldColor}
           />
         }
         backdrop={
-          attackColor && state.lastAttackSide ? (
+          attackColor && state.lastAttackSide && (opponentDamaged || playerDamaged) ? (
             <div
               key={backdropKey}
               className={`absolute inset-0 pointer-events-none z-10 ${
