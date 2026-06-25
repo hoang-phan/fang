@@ -7,7 +7,7 @@ export function useBattle(initialState: BattleState) {
 
   useEffect(() => {
     if (state.phase === 'resolving') {
-      const timer = setTimeout(() => dispatch({ type: 'OPPONENT_TURN_RESOLVE' }), 700);
+      const timer = setTimeout(() => dispatch({ type: 'OPPONENT_TURN_RESOLVE' }), 2000);
       return () => clearTimeout(timer);
     }
     if (state.phase === 'opponent_turn') {

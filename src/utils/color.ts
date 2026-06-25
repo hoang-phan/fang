@@ -1,3 +1,18 @@
+import type { ElementType } from '../types';
+
+export const ELEMENT_COLORS: Record<ElementType, string> = {
+  normal:   '#a8a878',
+  fire:     '#f08030',
+  water:    '#6890f0',
+  electric: '#f8d030',
+  grass:    '#78c850',
+  ice:      '#98d8d8',
+  poison:   '#a040a0',
+  earth:    '#e0c068',
+  dark:     '#705848',
+  psychic:  '#f85888',
+};
+
 export function getContrastColor(color: string): string {
   const rgb = color.match(/\w+/g);
   if (!rgb) return '#000000';

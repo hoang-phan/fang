@@ -8,6 +8,7 @@ import { BattleArena } from '../battle/BattleArena';
 import { CombatantCard } from '../battle/CombatantCard';
 import { BattleLog } from '../battle/BattleLog';
 import { ActionPanel } from '../battle/ActionPanel';
+import { ELEMENT_COLORS } from '../../utils/color';
 
 interface BattleScreenProps {
   initialBattleState: BattleState;
@@ -56,6 +57,7 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
 
   const opponentFlashing = state.lastPlayerDamage != null;
   const playerFlashing = state.lastOpponentDamage != null;
+  const attackColor = state.lastAttackElement ? ELEMENT_COLORS[state.lastAttackElement] : undefined;
 
   const phaseLabel = (() => {
     switch (state.phase) {
@@ -66,6 +68,8 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
       case 'defeat': return '💀 Defeated!';
     }
   })();
+
+  const backdropKey = `${state.turn}-${state.lastAttackSide ?? 'none'}`;
 
   return (
     <div className="h-screen flex flex-col bg-theme-base relative">
@@ -94,35 +98,44 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
       )}
 
       <BattleArena
-        top={
-          <>
-            <div className="flex-1">
-              <CombatantCard
-                name={state.opponent.def.name}
-                sprite={state.opponent.def.sprite}
-                avatarUrl={getAvatarUrl(
-                  opponents.find(o => o.id === state.opponent.def.id) ?? state.opponent.def,
-                  state.opponent.def.level,
-                )}
-                hp={state.opponent.hp}
-                maxHp={state.opponent.def.maxHp}
-                isFlashing={opponentFlashing}
-                side="opponent"
-              />
-            </div>
-            <div className="flex-1">
-              <CombatantCard
-                name={state.player.name}
-                sprite={state.player.sprite}
-                hp={state.player.hp}
-                maxHp={state.player.maxHp}
-                mp={state.player.mp}
-                maxMp={state.player.maxMp}
-                isFlashing={playerFlashing}
-                side="player"
-              />
-            </div>
-          </>
+        opponent={
+          <CombatantCard
+            name={state.opponent.def.name}
+            sprite={state.opponent.def.sprite}
+            avatarUrl={getAvatarUrl(
+              opponents.find(o => o.id === state.opponent.def.id) ?? state.opponent.def,
+              state.opponent.def.level,
+            )}
+            hp={state.opponent.hp}
+            maxHp={state.opponent.def.maxHp}
+            isFlashing={opponentFlashing}
+            flashColor={opponentFlashing ? attackColor : undefined}
+            side="opponent"
+          />
+        }
+        player={
+          <CombatantCard
+            name={state.player.name}
+            sprite={state.player.sprite}
+            hp={state.player.hp}
+            maxHp={state.player.maxHp}
+            mp={state.player.mp}
+            maxMp={state.player.maxMp}
+            isFlashing={playerFlashing}
+            flashColor={playerFlashing ? attackColor : undefined}
+            side="player"
+          />
+        }
+        backdrop={
+          attackColor && state.lastAttackSide ? (
+            <div
+              key={backdropKey}
+              className={`absolute inset-0 pointer-events-none z-10 ${
+                state.lastAttackSide === 'player' ? 'attack-backdrop-up' : 'attack-backdrop-down'
+              }`}
+              style={{ backgroundColor: attackColor }}
+            />
+          ) : null
         }
         middle={<BattleLog entries={state.log} />}
         bottom={

@@ -120,6 +120,8 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         log: [...state.log, mkLog(msg, 'player')],
         lastPlayerDamage: dmg,
         lastOpponentDamage: null,
+        lastAttackElement: BASIC_ATTACK.type,
+        lastAttackSide: 'player',
       };
     }
 
@@ -157,6 +159,8 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         activeEffects: ctx.activeEffects,
         lastPlayerDamage: move.baseDamage > 0 ? ctx.lastRawEffect : null,
         lastOpponentDamage: null,
+        lastAttackElement: move.type,
+        lastAttackSide: 'player',
       };
     }
 
@@ -171,6 +175,8 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
           log: [...state.log, mkLog(`${def.name} is stunned and can't act!`, 'system')],
           lastOpponentDamage: null,
           lastPlayerDamage: null,
+          lastAttackElement: null,
+          lastAttackSide: null,
         };
       }
 
@@ -196,6 +202,8 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         log: [...state.log, ...attackResult.logs],
         lastOpponentDamage: attackResult.dmg,
         lastPlayerDamage: null,
+        lastAttackElement: pickedMove ? pickedMove.type : def.type,
+        lastAttackSide: 'opponent',
         opponentMovesUsed,
         activeEffects: attackResult.activeEffects,
       };
@@ -270,6 +278,8 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         log: [...state.log, ...newLogs],
         lastPlayerDamage: null,
         lastOpponentDamage: null,
+        lastAttackElement: null,
+        lastAttackSide: null,
         activeEffects: remainingEffects,
         playerStunned: nextPlayerStunned,
         opponentStunned: nextOpponentStunned,
@@ -285,6 +295,8 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         playerStunned: false,
         lastPlayerDamage: null,
         lastOpponentDamage: null,
+        lastAttackElement: null,
+        lastAttackSide: null,
       };
     }
 

@@ -9,14 +9,19 @@ interface CombatantCardProps {
   mp?: number;
   maxMp?: number;
   isFlashing?: boolean;
+  flashColor?: string;
   side: 'player' | 'opponent';
 }
 
-export function CombatantCard({ name, sprite, avatarUrl, hp, maxHp, mp, maxMp, isFlashing, side }: CombatantCardProps) {
+export function CombatantCard({ name, sprite, avatarUrl, hp, maxHp, mp, maxMp, isFlashing, flashColor, side }: CombatantCardProps) {
   const bg = side === 'player' ? 'bg-player-bg border-player-border' : 'bg-enemy-bg border-enemy-border';
+  const flashClass = isFlashing ? (flashColor ? 'element-flash' : 'damage-flash') : '';
 
   return (
-    <div className={`rounded-xl border p-2 lg:p-4 flex flex-col gap-2 lg:gap-3 ${bg} ${isFlashing ? 'damage-flash' : ''}`}>
+    <div
+      className={`w-full rounded-xl border p-2 lg:p-4 flex flex-col gap-2 lg:gap-3 ${bg} ${flashClass}`}
+      style={flashColor ? { '--flash-color': flashColor } as React.CSSProperties : undefined}
+    >
       <div className="flex items-center gap-2 lg:gap-3">
         {avatarUrl
           ? <img src={avatarUrl} alt={name} className="w-14 h-14 lg:w-24 lg:h-24 object-contain shrink-0" />

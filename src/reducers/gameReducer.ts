@@ -122,6 +122,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         turn: 1,
         lastPlayerDamage: null,
         lastOpponentDamage: null,
+        lastAttackElement: null,
+        lastAttackSide: null,
         opponentMovesUsed: [],
         activeEffects: [],
         playerStunned: false,

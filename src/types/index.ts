@@ -161,6 +161,8 @@ export interface BattleState {
   turn: number;
   lastPlayerDamage: number | null;
   lastOpponentDamage: number | null;
+  lastAttackElement: ElementType | null;  // element of the most recent attack (for visual effects)
+  lastAttackSide: 'player' | 'opponent' | null; // who attacked last
   opponentMovesUsed: Move[];
   activeEffects: ActiveEffect[];
   playerStunned: boolean;   // true when player's action should be skipped this turn

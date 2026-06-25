@@ -138,3 +138,36 @@ body {
 .text-pulse {
   animation: pulse 1s ease-in-out infinite;
 }
+
+/* Battle attack backdrop — slides bottom-to-top (player attack) */
+@keyframes backdrop-slide-up {
+  0%   { transform: translateY(100%); opacity: 0.55; }
+  40%  { transform: translateY(0%);   opacity: 0.55; }
+  100% { transform: translateY(-100%); opacity: 0; }
+}
+
+/* Battle attack backdrop — slides top-to-bottom (opponent attack) */
+@keyframes backdrop-slide-down {
+  0%   { transform: translateY(-100%); opacity: 0.55; }
+  40%  { transform: translateY(0%);    opacity: 0.55; }
+  100% { transform: translateY(100%);  opacity: 0; }
+}
+
+.attack-backdrop-up {
+  animation: backdrop-slide-up 0.65s ease-in-out forwards;
+}
+
+.attack-backdrop-down {
+  animation: backdrop-slide-down 0.65s ease-in-out forwards;
+}
+
+/* Element-colored flash on combatant card */
+@keyframes element-flash {
+  0%, 100% { box-shadow: none; }
+  30%      { box-shadow: 0 0 0 4px var(--flash-color, #ffffff), 0 0 24px 8px var(--flash-color, #ffffff); }
+  70%      { box-shadow: 0 0 0 4px var(--flash-color, #ffffff), 0 0 16px 4px var(--flash-color, #ffffff); }
+}
+
+.element-flash {
+  animation: element-flash 0.5s ease-in-out forwards;
+}
