@@ -12,9 +12,11 @@ interface OpponentCardProps {
   defeated: boolean;
   selected: boolean;
   dispatch: Dispatch<GameAction>;
+  /** When false, card is display-only (no click interaction). Defaults to true. */
+  interactive?: boolean;
 }
 
-export function OpponentCard({ opp, oppProgress, unlocked, defeated, selected, dispatch }: OpponentCardProps) {
+export function OpponentCard({ opp, oppProgress, unlocked, defeated, selected, dispatch, interactive = true }: OpponentCardProps) {
   const scaled = getScaledOpponent(opp, oppProgress);
   const xpNeeded = xpToNextLevel(oppProgress.level);
 
@@ -25,12 +27,17 @@ export function OpponentCard({ opp, oppProgress, unlocked, defeated, selected, d
     return avatars[Math.min(oppProgress.level, 5) - 1] ?? avatars[avatars.length - 1];
   })();
 
+  const Tag = interactive ? 'button' : 'div';
+
   return (
-    <button
-      disabled={!unlocked}
-      onClick={() => dispatch({ type: 'SELECT_OPPONENT', opponentId: opp.id })}
+    <Tag
+      {...(interactive ? {
+        disabled: !unlocked,
+        onClick: () => dispatch({ type: 'SELECT_OPPONENT', opponentId: opp.id }),
+      } : {})}
       className={`
-        w-full text-left rounded-xl border p-4 transition-all duration-150 cursor-pointer
+        w-full text-left rounded-xl border p-4 transition-all duration-150
+        ${interactive ? 'cursor-pointer' : ''}
         ${!unlocked ? 'opacity-40 cursor-not-allowed border-border-mid bg-theme-surface/30' :
           selected ? 'border-accent bg-accent-subtle' :
           'border-border-strong bg-theme-surface/60 hover:border-text-faint'
@@ -67,8 +74,8 @@ export function OpponentCard({ opp, oppProgress, unlocked, defeated, selected, d
             <span className="text-xs text-text-faint">{oppProgress.xp}/{xpNeeded} XP</span>
           </div>
         </div>
-        {selected && <span className="text-accent text-xl shrink-0">▶</span>}
+        {selected && interactive && <span className="text-accent text-xl shrink-0">▶</span>}
       </div>
-    </button>
+    </Tag>
   );
 }

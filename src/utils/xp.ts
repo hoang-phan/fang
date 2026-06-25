@@ -1,5 +1,35 @@
 import type { OpponentDef, OpponentProgress, RelationshipProgress } from '../types';
 
+/**
+ * Pick a random opponent weighted inversely by their current level.
+ * Lower-level opponents have higher probability so power levels converge over time,
+ * but using sqrt keeps it from being too predictable.
+ *
+ * Weight formula: 1 / sqrt(oppLevel)
+ */
+export function pickWeightedRandomOpponent(
+  opponents: OpponentDef[],
+  opponentProgressMap: Record<string, OpponentProgress>,
+): OpponentDef | null {
+  if (opponents.length === 0) return null;
+
+  const weights = opponents.map(opp => {
+    const progress = opponentProgressMap[opp.id];
+    const level = progress ? progress.level : opp.level;
+    return 1 / Math.sqrt(level);
+  });
+
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  let rand = Math.random() * total;
+
+  for (let i = 0; i < opponents.length; i++) {
+    rand -= weights[i];
+    if (rand <= 0) return opponents[i];
+  }
+
+  return opponents[opponents.length - 1];
+}
+
 /** XP required to reach the next level (from current level). */
 export function xpToNextLevel(level: number): number {
   return level * 100;

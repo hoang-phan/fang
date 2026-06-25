@@ -39,7 +39,9 @@ export type GameAction =
   | { type: 'SELL_ITEM'; itemId: string }
   | { type: 'INTERACTION_CHAT'; opponentId: string; shopItems?: EquipmentItem[] }
   | { type: 'INTERACTION_GIFT'; opponentId: string; giftId: number; shopItems?: EquipmentItem[] }
-  | { type: 'INTERACTION_CINEMATIC'; opponentId: string; relationshipGain: number; shopItems?: EquipmentItem[] };
+  | { type: 'INTERACTION_CINEMATIC'; opponentId: string; relationshipGain: number; shopItems?: EquipmentItem[] }
+  | { type: 'REROLL_OPPONENT'; newOpponentId: string }
+  | { type: 'UNLEARN_MOVE'; moveId: string };
 
 export const DEFAULT_PLAYER: PlayerStats = {
   name: 'Hero',
@@ -243,9 +245,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         if (emptySlot !== -1) {
           newMoves[emptySlot] = { ...reward.move, level: 1 };
           player = { ...player, moves: newMoves };
-        } else {
+        } else if (player.learnedPool.length < 2) {
           player = { ...player, learnedPool: [...player.learnedPool, { ...reward.move, level: 1 }] };
         }
+        // If all 4 slots and both pool slots are full, silently skip (reward is forfeited).
       } else if (reward.type === 'upskill' && reward.move) {
         const moveId = reward.move.id;
         const newMoves = player.moves.map(m =>
@@ -313,9 +316,12 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const newMoves = [...state.player.moves] as PlayerStats['moves'];
       const displaced = newMoves[slot];
       newMoves[slot] = move;
-      const newPool = state.player.learnedPool
-        .filter(m => m.id !== move.id)
-        .concat(displaced ? [displaced] : []);
+      // Pool after removing the move being equipped
+      const poolWithoutMove = state.player.learnedPool.filter(m => m.id !== move.id);
+      // Displaced active move goes back to pool only if there's room (cap = 2)
+      const newPool = displaced && poolWithoutMove.length < 2
+        ? [...poolWithoutMove, displaced]
+        : poolWithoutMove;
       return {
         ...state,
         player: { ...state.player, moves: newMoves, learnedPool: newPool },
@@ -475,6 +481,28 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         pendingRewards: [],
         shopEquipment: pickShopEquipment(action.shopItems),
         relationshipProgress: { ...state.relationshipProgress, [action.opponentId]: updated },
+      };
+    }
+
+    case 'REROLL_OPPONENT': {
+      const cost = Math.max(1, Math.floor(state.player.gold * 0.1));
+      if (state.player.gold < cost) return state;
+      return {
+        ...state,
+        player: { ...state.player, gold: state.player.gold - cost },
+        selectedOpponentId: action.newOpponentId,
+      };
+    }
+
+    case 'UNLEARN_MOVE': {
+      const { moveId } = action;
+      const newMoves = state.player.moves.map(m =>
+        m?.id === moveId ? null : m
+      ) as PlayerStats['moves'];
+      const newPool = state.player.learnedPool.filter(m => m.id !== moveId);
+      return {
+        ...state,
+        player: { ...state.player, moves: newMoves, learnedPool: newPool },
       };
     }
 
