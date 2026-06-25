@@ -165,6 +165,7 @@ export function applyStun(ctx: MoveContext): MoveContext {
       stunned: true,
       turnsLeft: move.effectTurns,
       target: ctx.targetSide,
+      skipFirstTick: true,
     }],
     logs: [...ctx.logs, mkLog(logMsg, 'system')],
   };

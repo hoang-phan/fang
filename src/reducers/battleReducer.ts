@@ -150,6 +150,10 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
 
       const isVictory = move.baseDamage > 0 && checkVictory(ctx.targetHp);
 
+      const opponentJustStunned = ctx.activeEffects.some(
+        e => e.target === 'opponent' && e.stunned && !state.activeEffects.some(prev => prev === e),
+      );
+
       return {
         ...state,
         phase: isVictory ? 'victory' : 'resolving',
@@ -157,6 +161,7 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         opponent: { ...state.opponent, hp: ctx.targetHp },
         log: [...state.log, ...ctx.logs],
         activeEffects: ctx.activeEffects,
+        opponentStunned: opponentJustStunned ? true : state.opponentStunned,
         lastPlayerDamage: move.baseDamage > 0 ? ctx.lastRawEffect : null,
         lastOpponentDamage: null,
         lastAttackElement: move.type,
@@ -194,6 +199,10 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         ? [...state.opponentMovesUsed, pickedMove]
         : state.opponentMovesUsed;
 
+      const playerJustStunned = attackResult.activeEffects.some(
+        e => e.target === 'player' && e.stunned && !state.activeEffects.some(prev => prev === e),
+      );
+
       return {
         ...state,
         phase: isDefeat ? 'defeat' : 'opponent_turn',
@@ -206,6 +215,7 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         lastAttackSide: 'opponent',
         opponentMovesUsed,
         activeEffects: attackResult.activeEffects,
+        playerStunned: playerJustStunned ? true : state.playerStunned,
       };
     }
 
@@ -231,7 +241,7 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
           }
         }
 
-        if (eff.stunned) {
+        if (eff.stunned && !eff.skipFirstTick) {
           if (eff.target === 'player') nextPlayerStunned = true;
           else nextOpponentStunned = true;
         }
