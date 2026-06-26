@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getTransitionColorHex } from '../../utils/color';
-import { useMiniGameOutcome } from './useMiniGameOutcome';
+import { useMiniGameOutcome } from '../../hooks/useMiniGameOutcome';
 
 const GRID = 4;
 const TOTAL = GRID * GRID;

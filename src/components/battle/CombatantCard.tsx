@@ -13,23 +13,37 @@ interface CombatantCardProps {
   hasShield?: boolean;
   shieldColor?: string;
   shieldFlashKey?: number | null;
+  hasBoost?: boolean;
+  boostColor?: string;
+  boostFlashKey?: number | null;
   side: 'player' | 'opponent';
 }
 
-export function CombatantCard({ name, sprite, avatarUrl, hp, maxHp, mp, maxMp, damageFlashKey, damageFlashColor, hasShield, shieldColor, shieldFlashKey, side }: CombatantCardProps) {
+export function CombatantCard({ name, sprite, avatarUrl, hp, maxHp, mp, maxMp, damageFlashKey, damageFlashColor, hasShield, shieldColor, shieldFlashKey, hasBoost, boostColor, boostFlashKey, side }: CombatantCardProps) {
   const bg = side === 'player' ? 'bg-player-bg border-player-border' : 'bg-enemy-bg border-enemy-border';
-  const shieldStyle = shieldColor ? { '--shield-color': shieldColor } as React.CSSProperties : undefined;
+  const cardStyle = {
+    ...(shieldColor ? { '--shield-color': shieldColor } : {}),
+    ...(boostColor ? { '--boost-color': boostColor } : {}),
+  } as React.CSSProperties;
+  const glowClass = [hasShield ? 'shield-active' : '', hasBoost ? 'boost-active' : ''].filter(Boolean).join(' ');
 
   return (
     <div
-      className={`relative w-full rounded-xl border p-2 lg:p-4 flex flex-col gap-2 lg:gap-3 ${bg} ${hasShield ? 'shield-active' : ''}`}
-      style={shieldStyle}
+      className={`relative w-full rounded-xl border p-2 lg:p-4 flex flex-col gap-2 lg:gap-3 ${bg} ${glowClass}`}
+      style={Object.keys(cardStyle).length ? cardStyle : undefined}
     >
       {shieldFlashKey != null && (
         <div
           key={shieldFlashKey}
           className="shield-card-flash absolute inset-0 rounded-xl pointer-events-none z-10"
           style={{ backgroundColor: shieldColor ?? '#60a5fa' }}
+        />
+      )}
+      {boostFlashKey != null && (
+        <div
+          key={`boost-${boostFlashKey}`}
+          className="boost-card-flash absolute inset-0 rounded-xl pointer-events-none z-10"
+          style={{ backgroundColor: boostColor ?? '#f59e0b' }}
         />
       )}
       <div className="flex items-center gap-2 lg:gap-3">

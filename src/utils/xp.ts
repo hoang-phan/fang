@@ -1,4 +1,24 @@
-import type { OpponentDef, OpponentProgress, RelationshipProgress } from '../types';
+import type { ElementType, OpponentDef, OpponentProgress, RelationshipProgress } from '../types';
+
+const ELEMENT_ORDER: ElementType[] = [
+  'normal', 'fire', 'water', 'electric', 'grass',
+  'ice', 'poison', 'earth', 'dark', 'psychic',
+];
+
+/**
+ * Derive the player's defensive type from their stat distribution.
+ * The element with the highest investment wins; ties break on canonical order.
+ * Used by battleReducer to determine type effectiveness against player specials.
+ */
+export function getPlayerDefensiveType(stats: Partial<Record<ElementType, number>>): ElementType {
+  let best: ElementType = 'normal';
+  let bestVal = -1;
+  for (const el of ELEMENT_ORDER) {
+    const val = stats[el] ?? 0;
+    if (val > bestVal) { bestVal = val; best = el; }
+  }
+  return best;
+}
 
 /**
  * Pick a random opponent weighted inversely by their current level.

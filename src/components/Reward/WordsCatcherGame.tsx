@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MiniGameProgressBar } from '../ui/MiniGameProgressBar';
-import { useMiniGameOutcome } from './useMiniGameOutcome';
+import { useMiniGameOutcome } from '../../hooks/useMiniGameOutcome';
 
 const POSITIVE_WORDS = [
   'love', 'hope', 'joy', 'kind', 'warm', 'brave', 'true', 'friend', 'smile',

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MiniGameProgressBar } from '../ui/MiniGameProgressBar';
-import { useMiniGameOutcome } from './useMiniGameOutcome';
+import { useMiniGameOutcome } from '../../hooks/useMiniGameOutcome';
 
 const DRAIN_RATE = 0.05;
 const FILL_PER_CLICK = 0.014;

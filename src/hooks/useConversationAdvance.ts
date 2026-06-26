@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import type { Conversation } from '../../types';
+import type { Conversation } from '../types';
 
 export function useConversationAdvance(conversations: Conversation[], onComplete: () => void) {
   const [convIndex, setConvIndex] = useState(0);

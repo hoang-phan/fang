@@ -1,6 +1,6 @@
 import type { Dispatch } from 'react';
 import { useEffect, useRef } from 'react';
-import type { BattleState, OpponentDef, ElementType } from '../../types';
+import type { BattleState, OpponentDef } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
 import { useBattle } from '../../hooks/useBattle';
 import { useBattleKeys } from '../../hooks/useKeyboardShortcuts';
@@ -9,19 +9,7 @@ import { CombatantCard } from '../battle/CombatantCard';
 import { BattleLog } from '../battle/BattleLog';
 import { ActionPanel } from '../battle/ActionPanel';
 import { ELEMENT_COLORS } from '../../utils/color';
-
-const TYPE_ICONS: Record<ElementType, string> = {
-  normal:   '⚪',
-  fire:     '🔥',
-  water:    '💧',
-  electric: '⚡',
-  grass:    '🌿',
-  ice:      '❄️',
-  poison:   '☠️',
-  earth:    '🪨',
-  dark:     '🌑',
-  psychic:  '🔮',
-};
+import { TYPE_ICONS } from '../../utils/damage';
 
 interface BattleScreenProps {
   initialBattleState: BattleState;
@@ -82,6 +70,16 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
   const playerShieldJustApplied = state.activeEffects.some(e => e.target === 'player' && e.defense > 0 && e.skipFirstTick);
   const opponentShieldJustApplied = state.activeEffects.some(e => e.target === 'opponent' && e.defense > 0 && e.skipFirstTick);
 
+  const playerBoostEffect = state.activeEffects.find(e => e.target === 'player' && e.boostKind != null);
+  const opponentBoostEffect = state.activeEffects.find(e => e.target === 'opponent' && e.boostKind != null);
+  const playerHasBoost = playerBoostEffect != null;
+  const opponentHasBoost = opponentBoostEffect != null;
+  const playerBoostColor = playerBoostEffect ? ELEMENT_COLORS[playerBoostEffect.sourceType] : undefined;
+  const opponentBoostColor = opponentBoostEffect ? ELEMENT_COLORS[opponentBoostEffect.sourceType] : undefined;
+
+  const playerBoostJustApplied = state.activeEffects.some(e => e.target === 'player' && e.boostKind != null && e.skipFirstTick);
+  const opponentBoostJustApplied = state.activeEffects.some(e => e.target === 'opponent' && e.boostKind != null && e.skipFirstTick);
+
   // Flash keys increment each time damage is received to replay the animation
   const playerFlashKey = playerDamaged ? state.turn : null;
   const opponentFlashKey = opponentDamaged ? state.turn : null;
@@ -139,8 +137,11 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
             damageFlashColor={attackColor}
             hasShield={opponentHasShield}
             shieldFlashKey={opponentShieldJustApplied ? state.turn : null}
-            side="opponent"
             shieldColor={opponentShieldColor}
+            hasBoost={opponentHasBoost}
+            boostFlashKey={opponentBoostJustApplied ? state.turn : null}
+            boostColor={opponentBoostColor}
+            side="opponent"
           />
         }
         player={
@@ -155,8 +156,11 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
             damageFlashColor={attackColor}
             hasShield={playerHasShield}
             shieldFlashKey={playerShieldJustApplied ? state.turn : null}
-            side="player"
             shieldColor={playerShieldColor}
+            hasBoost={playerHasBoost}
+            boostFlashKey={playerBoostJustApplied ? state.turn : null}
+            boostColor={playerBoostColor}
+            side="player"
           />
         }
         backdrop={

@@ -13,7 +13,7 @@
  * then writes ctx back into the next state in one spread.
  */
 
-import type { ActiveEffect, BattleLogEntry, ElementType, Move, PlayerStatBonuses } from '../types';
+import type { ActiveEffect, BoostKind, BattleLogEntry, ElementType, Move, PlayerStatBonuses } from '../types';
 import { calcMoveEffect, effectivenessLabel, getTypeEffectiveness, getTypeIcon } from './damage';
 
 // ─── Shared log/shield utilities ────────────────────────────────────────────
@@ -25,6 +25,48 @@ export function mkLog(text: string, logType: BattleLogEntry['type'], moveType?: 
 
 export function sumShield(effects: ActiveEffect[], target: 'player' | 'opponent'): number {
   return effects.filter(e => e.target === target && e.defense > 0).reduce((s, e) => s + e.defense, 0);
+}
+
+// Returns a combined damage multiplier from all active attack_all boosts for a side (1.0 = no boost)
+export function getAttackAllBoost(effects: ActiveEffect[], side: 'player' | 'opponent'): number {
+  return effects
+    .filter(e => e.target === side && e.boostKind === 'attack_all' && (e.boostPercent ?? 0) > 0)
+    .reduce((mult, e) => mult * (1 + (e.boostPercent!) / 100), 1);
+}
+
+// Returns a combined damage multiplier from attack_element boosts for a specific element and side
+export function getAttackElementBoost(effects: ActiveEffect[], side: 'player' | 'opponent', element: ElementType): number {
+  return effects
+    .filter(e => e.target === side && e.boostKind === 'attack_element' && e.boostElement === element && (e.boostPercent ?? 0) > 0)
+    .reduce((mult, e) => mult * (1 + (e.boostPercent!) / 100), 1);
+}
+
+// Returns an additional flat defense bonus from defense boosts (additive percentage of current baseDefense)
+export function getDefenseBoostPct(effects: ActiveEffect[], side: 'player' | 'opponent'): number {
+  return effects
+    .filter(e => e.target === side && e.boostKind === 'defense' && (e.boostPercent ?? 0) > 0)
+    .reduce((sum, e) => sum + (e.boostPercent!), 0);
+}
+
+// Returns the total evasion % chance from active evasion boosts for a side
+export function getEvasionPct(effects: ActiveEffect[], side: 'player' | 'opponent'): number {
+  return effects
+    .filter(e => e.target === side && e.boostKind === 'evasion' && (e.boostPercent ?? 0) > 0)
+    .reduce((sum, e) => sum + (e.boostPercent!), 0);
+}
+
+// Returns % of max HP to regen per tick (summed from all active hp boosts for a side)
+export function getHpRegenBoostPct(effects: ActiveEffect[], side: 'player' | 'opponent'): number {
+  return effects
+    .filter(e => e.target === side && e.boostKind === 'hp' && (e.boostPercent ?? 0) > 0)
+    .reduce((sum, e) => sum + (e.boostPercent!), 0);
+}
+
+// Returns % of max MP to regen per tick (summed from all active mp boosts for a side)
+export function getMpRegenBoostPct(effects: ActiveEffect[], side: 'player' | 'opponent'): number {
+  return effects
+    .filter(e => e.target === side && e.boostKind === 'mp' && (e.boostPercent ?? 0) > 0)
+    .reduce((sum, e) => sum + (e.boostPercent!), 0);
 }
 
 const STATUS_LABEL: Partial<Record<ElementType, string>> = {
@@ -62,6 +104,10 @@ export interface MoveContext {
   lastRawEffect:     number;  // pre-shield raw effect — used for damage animation
   attackerBaseDamage: number; // flat bonus from attacker's baseDamage stat
   defenderBaseDefense: number; // flat reduction from defender's baseDefense stat
+  // boost multipliers pre-computed by the caller (default 1.0 if not provided)
+  attackAllMult?:    number;  // from attack_all active effects on the caster
+  attackElemMult?:   number;  // from attack_element active effects matching the move's element
+  defenderDefBoostPct?: number; // extra defense % from defender's defense boost effects
 }
 
 // ─── Effect handlers ─────────────────────────────────────────────────────────
@@ -84,9 +130,13 @@ export function applyHeal(ctx: MoveContext, statBonuses?: PlayerStatBonuses): Mo
 export function applyDamage(ctx: MoveContext, defenderType: ElementType, statBonuses?: PlayerStatBonuses): MoveContext {
   if (ctx.move.baseDamage <= 0) return ctx;
   const elementalDamage = calcMoveEffect(ctx.move, defenderType, statBonuses);
-  // Special moves scale only through elemental bonuses + move level; baseDamage applies to basic attack only
-  // Defense is halved to prevent it from being too dominant vs. elemental builds
-  const rawEffect = Math.max(1, elementalDamage - Math.floor(ctx.defenderBaseDefense * 0.5));
+  // Apply attack boost multipliers from active effects
+  const attackAllMult = ctx.attackAllMult ?? 1;
+  const attackElemMult = ctx.attackElemMult ?? 1;
+  const combinedDmgMult = attackAllMult * attackElemMult;
+  // Defense is halved to prevent it from being too dominant; boosted defense applies additively
+  const boostedDefense = ctx.defenderBaseDefense * (1 + (ctx.defenderDefBoostPct ?? 0) / 100);
+  const rawEffect = Math.max(1, Math.round(elementalDamage * combinedDmgMult - Math.floor(boostedDefense * 0.5)));
   const shield = sumShield(ctx.activeEffects, ctx.targetSide);
   const damage = Math.max(0, rawEffect - shield);
   const effectiveness = getTypeEffectiveness(ctx.move.type, defenderType);
@@ -171,6 +221,54 @@ export function applyStun(ctx: MoveContext): MoveContext {
   };
 }
 
+const BOOST_LABEL: Record<BoostKind, string> = {
+  attack_all:     'attack power',
+  attack_element: 'elemental attack',
+  defense:        'defense',
+  evasion:        'evasion',
+  hp:             'HP regeneration',
+  mp:             'MP regeneration',
+};
+
+export function applyBoost(ctx: MoveContext): MoveContext {
+  const { move } = ctx;
+  if (!move.effectBoostKind || move.effectBoostKind === 'none' as string || !move.effectBoostPercent || !move.effectTurns) return ctx;
+
+  const kind = move.effectBoostKind as BoostKind;
+  const turns = move.effectTurns;
+  const boostElement = kind === 'attack_element' ? move.type : undefined;
+  const label = BOOST_LABEL[kind];
+  const logMsg = ctx.casterSide === 'player'
+    ? `Your ${label} increased by ${move.effectBoostPercent}% for ${turns} turn${turns > 1 ? 's' : ''}!`
+    : `${ctx.casterName}'s ${label} increased by ${move.effectBoostPercent}% for ${turns} turn${turns > 1 ? 's' : ''}!`;
+
+  // Replace any existing boost of the same kind on the same target.
+  // attack_element is keyed by kind + element — different elements can coexist.
+  const withoutOld = ctx.activeEffects.filter(e => {
+    if (e.target !== ctx.casterSide || e.boostKind !== kind) return true;
+    if (kind === 'attack_element') return e.boostElement !== boostElement;
+    return false;
+  });
+
+  return {
+    ...ctx,
+    activeEffects: [...withoutOld, {
+      sourceName: move.name,
+      sourceType: move.type,
+      damage: 0,
+      defense: 0,
+      stunned: false,
+      turnsLeft: turns,
+      target: ctx.casterSide,
+      skipFirstTick: true,
+      boostKind: kind,
+      boostPercent: move.effectBoostPercent,
+      boostElement,
+    }],
+    logs: [...ctx.logs, mkLog(logMsg, 'system')],
+  };
+}
+
 export function applyShield(ctx: MoveContext): MoveContext {
   const { move } = ctx;
   if (!move.baseDefense || !move.effectTurns) return ctx;
@@ -212,5 +310,7 @@ export function applyMoveEffects(ctx: MoveContext, defenderType: ElementType, st
     ctx = applyDoT(ctx);
     ctx = applyStun(ctx);
   }
-  return applyShield(ctx);
+  ctx = applyShield(ctx);
+  ctx = applyBoost(ctx);
+  return ctx;
 }

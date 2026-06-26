@@ -360,3 +360,13 @@ export function computeEquipmentStats(equipped: EquippedItems): EquipmentStatDel
 
   return result;
 }
+
+/** Pick 4–6 items from the backend pool, re-rolling affixes so stats are randomized each shop visit. */
+export function pickShopEquipment(pool: EquipmentItem[] | undefined): EquipmentItem[] {
+  if (!pool || pool.length === 0) return generateShopEquipment();
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  const count = 4 + Math.floor(Math.random() * 3);
+  return shuffled.slice(0, Math.min(count, shuffled.length)).map(
+    item => generateEquipmentItem(item.category, item.quality)
+  );
+}

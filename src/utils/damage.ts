@@ -61,7 +61,7 @@ const TYPE_CHART: Partial<Record<ElementType, Partial<Record<ElementType, number
   },
 };
 
-const TYPE_ICONS: Record<ElementType, string> = {
+export const TYPE_ICONS: Record<ElementType, string> = {
   normal: '⚫',
   fire: '🔥',
   water: '💧',

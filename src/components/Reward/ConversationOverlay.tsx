@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { Conversation } from '../../types';
 import { Sprite } from './Sprite';
-import { useConversationAdvance } from './useConversationAdvance';
+import { useConversationAdvance } from '../../hooks/useConversationAdvance';
 import { getContrastColor } from '../../utils/color';
 import { ClickMiniGame } from './ClickMiniGame';
 import { WordsCatcherGame } from './WordsCatcherGame';

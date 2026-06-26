@@ -10,25 +10,16 @@
  *                                       └── victory / defeat checked after each action and after ticks
  */
 
-import type { BattleState, BattleLogEntry, ActiveEffect, Move, ElementType } from '../types';
+import type { BattleState, BattleLogEntry, ActiveEffect, Move } from '../types';
 import { calcMoveEffect } from '../utils/damage';
 import { BASIC_ATTACK } from '../data/moves';
-import { applyMoveEffects, mkLog, sumShield, statusLabel, type MoveContext } from '../utils/specialMoveEffects';
-
-const ELEMENT_ORDER: ElementType[] = [
-  'normal', 'fire', 'water', 'electric', 'grass',
-  'ice', 'poison', 'earth', 'dark', 'psychic',
-];
-
-function getPlayerDefensiveType(stats: Partial<Record<ElementType, number>>): ElementType {
-  let best: ElementType = 'normal';
-  let bestVal = -1;
-  for (const el of ELEMENT_ORDER) {
-    const val = stats[el] ?? 0;
-    if (val > bestVal) { bestVal = val; best = el; }
-  }
-  return best;
-}
+import {
+  applyMoveEffects, mkLog, sumShield, statusLabel,
+  getAttackAllBoost, getAttackElementBoost, getDefenseBoostPct, getEvasionPct,
+  getHpRegenBoostPct, getMpRegenBoostPct,
+  type MoveContext,
+} from '../utils/specialMoveEffects';
+import { getPlayerDefensiveType } from '../utils/xp';
 
 function checkVictory(hp: number): boolean { return hp <= 0; }
 function checkDefeat(hp: number): boolean { return hp <= 0; }
@@ -39,11 +30,27 @@ interface AttackResult {
   dmg: number;
   logs: BattleLogEntry[];
   activeEffects: ActiveEffect[];
+  evaded?: boolean;
 }
 
 function resolveOpponentSpecial(state: BattleState, move: Move): AttackResult {
   const { def } = state.opponent;
   const playerDefType = getPlayerDefensiveType(state.player.stats);
+
+  // Player evasion check (only for damage moves)
+  if (move.baseDamage > 0) {
+    const playerEvasion = getEvasionPct(state.activeEffects, 'player');
+    if (playerEvasion > 0 && Math.random() * 100 < playerEvasion) {
+      return {
+        newPlayerHp: state.player.hp,
+        newOpponentHp: state.opponent.hp,
+        dmg: 0,
+        logs: [mkLog(`You evaded ${def.name}'s ${move.name}!`, 'system')],
+        activeEffects: state.activeEffects,
+        evaded: true,
+      };
+    }
+  }
 
   const ctx = applyMoveEffects(
     {
@@ -55,6 +62,9 @@ function resolveOpponentSpecial(state: BattleState, move: Move): AttackResult {
       move, lastDamageDealt: 0, lastRawEffect: 0,
       attackerBaseDamage: def.baseDamage,
       defenderBaseDefense: state.player.baseDefense,
+      attackAllMult: getAttackAllBoost(state.activeEffects, 'opponent'),
+      attackElemMult: getAttackElementBoost(state.activeEffects, 'opponent', move.type),
+      defenderDefBoostPct: getDefenseBoostPct(state.activeEffects, 'player'),
     } satisfies MoveContext,
     playerDefType,
   );
@@ -70,10 +80,27 @@ function resolveOpponentSpecial(state: BattleState, move: Move): AttackResult {
 
 function resolveOpponentAutoAttack(state: BattleState): AttackResult {
   const { def } = state.opponent;
+
+  // Player evasion check for auto-attack
+  const playerEvasion = getEvasionPct(state.activeEffects, 'player');
+  if (playerEvasion > 0 && Math.random() * 100 < playerEvasion) {
+    return {
+      newPlayerHp: state.player.hp,
+      newOpponentHp: state.opponent.hp,
+      dmg: 0,
+      logs: [mkLog(`You evaded ${def.name}'s attack!`, 'system')],
+      activeEffects: state.activeEffects,
+      evaded: true,
+    };
+  }
+
   const spread = def.baseDamage * def.damageVariance;
   const autoBase = Math.round(def.baseDamage + (Math.random() * spread * 2 - spread));
+  const attackAllMult = getAttackAllBoost(state.activeEffects, 'opponent');
+  const defBoostPct = getDefenseBoostPct(state.activeEffects, 'player');
+  const boostedPlayerDefense = state.player.baseDefense * (1 + defBoostPct / 100);
   // Defense is halved to prevent it from being too dominant; attacker baseDamage already baked into autoBase
-  const rawDmg = Math.max(1, autoBase - Math.floor(state.player.baseDefense * 0.5));
+  const rawDmg = Math.max(1, Math.round(autoBase * attackAllMult - Math.floor(boostedPlayerDefense * 0.5)));
   const shield = sumShield(state.activeEffects, 'player');
   const dmg = Math.max(0, rawDmg - shield);
 
@@ -103,8 +130,26 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
       if (state.phase !== 'player_turn') return state;
       if (state.playerStunned) return state;
 
+      // Check if opponent evades this attack
+      const opponentEvasion = getEvasionPct(state.activeEffects, 'opponent');
+      if (opponentEvasion > 0 && Math.random() * 100 < opponentEvasion) {
+        return {
+          ...state,
+          phase: 'resolving',
+          log: [...state.log, mkLog(`${state.opponent.def.name} evaded your attack!`, 'system')],
+          lastPlayerDamage: null,
+          lastOpponentDamage: null,
+          lastAttackElement: BASIC_ATTACK.type,
+          lastAttackSide: 'player',
+        };
+      }
+
+      const attackAllMult = getAttackAllBoost(state.activeEffects, 'player');
+      const defBoostPct = getDefenseBoostPct(state.activeEffects, 'opponent');
+      const boostedDefense = state.opponent.def.baseDefense * (1 + defBoostPct / 100);
+
       const elementalDmg = calcMoveEffect(BASIC_ATTACK, state.opponent.def.type, state.player.stats);
-      const rawDmg = Math.max(1, elementalDmg + state.player.baseDamage - Math.floor(state.opponent.def.baseDefense * 0.5));
+      const rawDmg = Math.max(1, Math.round((elementalDmg + state.player.baseDamage) * attackAllMult - Math.floor(boostedDefense * 0.5)));
       const shield = sumShield(state.activeEffects, 'opponent');
       const dmg = Math.max(0, rawDmg - shield);
       const newOpponentHp = Math.max(0, state.opponent.hp - dmg);
@@ -133,6 +178,23 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
       if (!move) return state;
       if (state.player.mp < move.mpCost) return state;
 
+      // Check if opponent evades this attack (only applies to damage moves)
+      if (move.baseDamage > 0) {
+        const opponentEvasion = getEvasionPct(state.activeEffects, 'opponent');
+        if (opponentEvasion > 0 && Math.random() * 100 < opponentEvasion) {
+          return {
+            ...state,
+            phase: 'resolving',
+            player: { ...state.player, mp: state.player.mp - move.mpCost },
+            log: [...state.log, mkLog(`${state.opponent.def.name} evaded your ${move.name}!`, 'system')],
+            lastPlayerDamage: null,
+            lastOpponentDamage: null,
+            lastAttackElement: move.type,
+            lastAttackSide: 'player',
+          };
+        }
+      }
+
       const ctx = applyMoveEffects(
         {
           casterHp: state.player.hp, casterMaxHp: state.player.maxHp,
@@ -143,6 +205,9 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
           move, lastDamageDealt: 0, lastRawEffect: 0,
           attackerBaseDamage: state.player.baseDamage,
           defenderBaseDefense: state.opponent.def.baseDefense,
+          attackAllMult: getAttackAllBoost(state.activeEffects, 'player'),
+          attackElemMult: getAttackElementBoost(state.activeEffects, 'player', move.type),
+          defenderDefBoostPct: getDefenseBoostPct(state.activeEffects, 'opponent'),
         } satisfies MoveContext,
         state.opponent.def.type,
         state.player.stats,
@@ -246,6 +311,34 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
           else nextOpponentStunned = true;
         }
 
+        // hp/mp boost regen ticks each turn (on skipFirstTick round too — applied immediately)
+        if (eff.boostKind === 'hp' && (eff.boostPercent ?? 0) > 0) {
+          if (eff.target === 'player' && newPlayerHp > 0) {
+            const regen = Math.max(1, Math.floor(state.player.maxHp * eff.boostPercent! / 100));
+            const actual = Math.min(regen, state.player.maxHp - newPlayerHp);
+            if (actual > 0) {
+              newPlayerHp += actual;
+              newLogs.push(mkLog(`${eff.sourceName} restored ${actual} HP!`, 'system'));
+            }
+          } else if (eff.target === 'opponent' && newOpponentHp > 0) {
+            const regen = Math.max(1, Math.floor(state.opponent.def.maxHp * eff.boostPercent! / 100));
+            const actual = Math.min(regen, state.opponent.def.maxHp - newOpponentHp);
+            if (actual > 0) {
+              newOpponentHp += actual;
+              newLogs.push(mkLog(`${state.opponent.def.name} regenerated ${actual} HP!`, 'system'));
+            }
+          }
+        }
+
+        if (eff.boostKind === 'mp' && (eff.boostPercent ?? 0) > 0 && eff.target === 'player') {
+          const regen = Math.max(1, Math.floor(state.player.maxMp * eff.boostPercent! / 100));
+          const actual = Math.min(regen, state.player.maxMp - newPlayerMp);
+          if (actual > 0) {
+            newPlayerMp += actual;
+            newLogs.push(mkLog(`${eff.sourceName} restored ${actual} MP!`, 'system'));
+          }
+        }
+
         if (eff.skipFirstTick) {
           remainingEffects.push({ ...eff, skipFirstTick: false });
         } else {
@@ -255,6 +348,11 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
           } else if (eff.defense > 0) {
             newLogs.push(mkLog(
               `${eff.target === 'player' ? 'Your' : `${state.opponent.def.name}'s`} ${eff.sourceName} shield faded!`,
+              'system',
+            ));
+          } else if (eff.boostKind) {
+            newLogs.push(mkLog(
+              `${eff.target === 'player' ? 'Your' : `${state.opponent.def.name}'s`} ${eff.sourceName} boost wore off!`,
               'system',
             ));
           }
@@ -273,6 +371,32 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         if (restored > 0) {
           newPlayerMp += restored;
           newLogs.push(mkLog(`You recovered ${restored} MP.`, 'system'));
+        }
+      }
+
+      const hpBoostPct = getHpRegenBoostPct(remainingEffects, 'player');
+      if (hpBoostPct > 0 && newPlayerHp > 0) {
+        const healed = Math.min(Math.max(1, Math.floor(state.player.maxHp * hpBoostPct / 100)), state.player.maxHp - newPlayerHp);
+        if (healed > 0) {
+          newPlayerHp += healed;
+          newLogs.push(mkLog(`You regenerated ${healed} HP from your boost.`, 'system'));
+        }
+      }
+      const mpBoostPct = getMpRegenBoostPct(remainingEffects, 'player');
+      if (mpBoostPct > 0) {
+        const restored = Math.min(Math.max(1, Math.floor(state.player.maxMp * mpBoostPct / 100)), state.player.maxMp - newPlayerMp);
+        if (restored > 0) {
+          newPlayerMp += restored;
+          newLogs.push(mkLog(`You recovered ${restored} MP from your boost.`, 'system'));
+        }
+      }
+
+      const opponentHpBoostPct = getHpRegenBoostPct(remainingEffects, 'opponent');
+      if (opponentHpBoostPct > 0 && newOpponentHp > 0) {
+        const healed = Math.min(Math.max(1, Math.floor(state.opponent.def.maxHp * opponentHpBoostPct / 100)), state.opponent.def.maxHp - newOpponentHp);
+        if (healed > 0) {
+          newOpponentHp += healed;
+          newLogs.push(mkLog(`${state.opponent.def.name} regenerated ${healed} HP.`, 'system'));
         }
       }
 

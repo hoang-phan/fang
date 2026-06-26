@@ -2,17 +2,7 @@ import type { GameState, GameScreen, PlayerStats, RewardOption, BattleState, Mov
 import { SHOP_ITEMS } from '../data/shopItems';
 import { generateRewards } from '../utils/rewards';
 import { applyXp, calcPlayerXpGain, calcOpponentXpGain, getOpponentProgress, getScaledOpponent, getRelationshipProgress, applyRelXp } from '../utils/xp';
-import { generateShopEquipment, generateEquipmentItem, computeEquipmentStats, equipmentCost, CATEGORY_SLOTS } from '../utils/equipment';
-
-/** Pick 4–6 items from the backend pool, re-rolling affixes on each so stats are randomized. */
-function pickShopEquipment(pool: EquipmentItem[] | undefined): EquipmentItem[] {
-  if (!pool || pool.length === 0) return generateShopEquipment();
-  const shuffled = [...pool].sort(() => Math.random() - 0.5);
-  const count = 4 + Math.floor(Math.random() * 3);
-  return shuffled.slice(0, Math.min(count, shuffled.length)).map(
-    item => generateEquipmentItem(item.category, item.quality)
-  );
-}
+import { computeEquipmentStats, equipmentCost, pickShopEquipment, CATEGORY_SLOTS } from '../utils/equipment';
 import { rollDrop } from '../utils/drops';
 
 export type StatPointTarget = ElementType | 'baseDamage' | 'baseDefense';

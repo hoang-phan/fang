@@ -29,6 +29,8 @@ export interface Move {
   effectStun?: boolean;    // if true, effect stuns the target (skips their turn) instead of dealing DoT
   leech?: number;          // % of damage converted to HP for the caster
   baseDefense?: number;    // temporary defense shield per turn (scales with level, lasts effectTurns)
+  effectBoostKind?: 'attack_all' | 'attack_element' | 'defense' | 'evasion' | 'hp' | 'mp'; // stat boost kind
+  effectBoostPercent?: number; // percentage value for the boost (e.g. 20 = 20%)
 }
 
 // Flat bonus damage added to each elemental type from stat points
@@ -139,15 +141,21 @@ export interface BattleLogEntry {
   moveType?: ElementType;
 }
 
+export type BoostKind = 'attack_all' | 'attack_element' | 'defense' | 'evasion' | 'hp' | 'mp';
+
 export interface ActiveEffect {
   sourceName: string;    // display name of the move that applied it
   sourceType: ElementType;
-  damage: number;        // damage per tick (DoT); 0 for shield/stun effects
-  defense: number;       // damage absorbed per incoming hit; 0 for DoT/stun effects
+  damage: number;        // damage per tick (DoT); 0 for shield/stun/boost effects
+  defense: number;       // damage absorbed per incoming hit; 0 for DoT/stun/boost effects
   stunned: boolean;      // if true, target skips their action this turn
   turnsLeft: number;     // ticks remaining
   target: 'player' | 'opponent';
   skipFirstTick?: boolean; // true on shield effects applied this round; prevents the immediate TICK_RESOLVE from consuming a turn
+  // boost fields (only set for boost effects)
+  boostKind?: BoostKind;
+  boostPercent?: number; // percentage value (e.g. 20 = 20%)
+  boostElement?: ElementType; // set for attack_element boosts — the element being boosted
 }
 
 export interface BattleState {
