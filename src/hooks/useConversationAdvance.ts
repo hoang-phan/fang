@@ -15,6 +15,7 @@ export function useConversationAdvance(conversations: Conversation[], onComplete
   const isVeryLast = isLastChat && isLastConv;
 
   const advance = () => {
+    if (bgFading) return;
     if (!isLastChat) {
       setChatIndex(i => i + 1);
     } else if (!isLastConv) {

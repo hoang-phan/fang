@@ -116,18 +116,26 @@ export function ConversationOverlay({
   });
 
   const isConversationVideo = currentConv?.backgroundUrl?.endsWith('.mp4');
+  const isConversationImage = !!(currentConv?.backgroundUrl && !isConversationVideo);
   const fileParts = currentConv?.backgroundUrl?.split('/');
   const isEBackground = fileParts ? fileParts[fileParts.length - 1].startsWith('e') : false;
 
   useEffect(() => {
-    if (bgFading && isConversationVideo && videoRef.current) {
+    if (!bgFading) return;
+    if (isConversationVideo && videoRef.current) {
       videoRef.current.style.transition = 'opacity 0.5s';
       videoRef.current.style.opacity = '0';
       const el = videoRef.current;
       const handler = () => onBgFadeOutEnd();
       el.addEventListener('transitionend', handler, { once: true });
-      return () => el.removeEventListener('transitionend', handler);
+      // Fallback in case transitionend never fires (e.g. element remounted with opacity already 0).
+      const fallback = setTimeout(onBgFadeOutEnd, 550);
+      return () => { el.removeEventListener('transitionend', handler); clearTimeout(fallback); };
     }
+    // For image backgrounds the transitionend is on the <img> element via onTransitionEnd prop.
+    // Add a timeout fallback in case the transition never fires (freshly mounted img, no prior opacity to transition from).
+    const fallback = setTimeout(onBgFadeOutEnd, 550);
+    return () => clearTimeout(fallback);
   }, [bgFading, isConversationVideo, onBgFadeOutEnd]);
 
 
@@ -155,8 +163,6 @@ export function ConversationOverlay({
     : isWordsCatcher || isShufflePuzzle || isMultiChoice
     ? undefined
     : advance;
-
-  const isConversationImage = currentConv.backgroundUrl && !isConversationVideo;
 
   return (
     <div
