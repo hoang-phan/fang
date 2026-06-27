@@ -7,6 +7,7 @@ import { BattleScreen } from './components/screens/BattleScreen';
 import { RewardScreen } from './components/screens/RewardScreen';
 import { ShopScreen } from './components/screens/ShopScreen';
 import { GalleryScreen } from './components/screens/GalleryScreen';
+import { PvpLobbyScreen } from './components/screens/PvpLobbyScreen';
 
 function App() {
   const { state, dispatch } = useGame();
@@ -46,6 +47,9 @@ function App() {
 
     case 'gallery':
       return <GalleryScreen gameState={state} opponents={opponents} dispatch={dispatch} />;
+
+    case 'pvp_lobby':
+      return <PvpLobbyScreen gameState={state} dispatch={dispatch} />;
 
     case 'opponent_select':
     default:

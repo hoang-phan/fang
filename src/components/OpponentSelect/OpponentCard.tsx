@@ -20,12 +20,7 @@ export function OpponentCard({ opp, oppProgress, unlocked, defeated, selected, d
   const scaled = getScaledOpponent(opp, oppProgress);
   const xpNeeded = xpToNextLevel(oppProgress.level);
 
-  const avatarUrl = (() => {
-    if (!unlocked) return undefined;
-    const { avatars } = opp;
-    if (!avatars?.length) return undefined;
-    return avatars[Math.min(oppProgress.level, 5) - 1] ?? avatars[avatars.length - 1];
-  })();
+  const avatarUrl = unlocked ? opp.avatar : undefined;
 
   const Tag = interactive ? 'button' : 'div';
 
@@ -64,7 +59,7 @@ export function OpponentCard({ opp, oppProgress, unlocked, defeated, selected, d
               <ProgressBar label="HP" value={scaled.maxHp} max={scaled.maxHp} autoColor />
             </div>
             <span className="text-xs text-accent">💰 {opp.goldReward[0]}–{opp.goldReward[1]}g</span>
-            <span className="text-xs text-text-muted">⭐ {opp.xpReward[0]} XP</span>
+            <span className="text-xs text-text-muted">⭐ {Math.round(scaled.baseXp * Math.pow(1.5, scaled.level - 1))} XP</span>
             <span className="text-sm">{getTypeIcon(opp.type)}</span>
           </div>
           <div className="mt-2 flex items-center gap-2">

@@ -1,5 +1,12 @@
 import type { ElementType, OpponentDef, OpponentProgress, RelationshipProgress } from '../types';
 
+/** Expand a single backend gold_reward value to [min, max] at a given level: base * 1.2^(level-1) ±20%. */
+export function expandGoldReward(base: number, level: number): [number, number] {
+  const scaled = base * Math.pow(1.2, level - 1);
+  const variance = scaled * 0.2;
+  return [Math.max(0, Math.round(scaled - variance)), Math.round(scaled + variance)];
+}
+
 const ELEMENT_ORDER: ElementType[] = [
   'normal', 'fire', 'water', 'electric', 'grass',
   'ice', 'poison', 'earth', 'dark', 'psychic',
@@ -78,21 +85,33 @@ export function applyXp(
 }
 
 /**
- * XP the player earns.
- * - Win: opponent.level * 50
- * - Lose: opponent.level * 10
+ * XP the player earns after a battle.
+ * Win:  baseXp * 1.5^(opponent.level - 1)   (player is the winner; loser is the opponent)
+ * Lose: baseXp * 1.5^(player.level - 1) * 0.2
+ *
+ * base_xp is always the opponent's baseXp field.
  */
-export function calcPlayerXpGain(opponent: OpponentDef, won: boolean): number {
-  return won ? opponent.level * 50 : opponent.level * 10;
+export function calcPlayerXpGain(opponent: OpponentDef, won: boolean, playerLevel: number): number {
+  const baseXp = opponent.baseXp;
+  if (won) {
+    return Math.round(baseXp * Math.pow(1.5, opponent.level - 1));
+  }
+  return Math.round(baseXp * Math.pow(1.5, playerLevel - 1) * 0.2);
 }
 
 /**
- * XP the opponent earns.
- * - Win (player lost): opponent.level * 40
- * - Lose: opponent.level * 5
+ * XP the opponent earns after a battle.
+ * Win (opponent won, player lost): baseXp * 1.5^(opponent.level - 1)   [winner's level in exponent]
+ * Lose:                            baseXp * 1.5^(player.level - 1) * 0.2  [winner's level in exponent]
+ *
+ * base_xp is always the opponent's baseXp field.
  */
-export function calcOpponentXpGain(opponent: OpponentDef, opponentWon: boolean): number {
-  return opponentWon ? opponent.level * 40 : opponent.level * 5;
+export function calcOpponentXpGain(opponent: OpponentDef, opponentWon: boolean, playerLevel: number): number {
+  const baseXp = opponent.baseXp;
+  if (opponentWon) {
+    return Math.round(baseXp * Math.pow(1.5, opponent.level - 1));
+  }
+  return Math.round(baseXp * Math.pow(1.5, playerLevel - 1) * 0.2);
 }
 
 // ─── Relationship helpers ─────────────────────────────────────────────────────
@@ -165,11 +184,7 @@ export function getScaledOpponent(def: OpponentDef, progress: OpponentProgress):
     };
   });
 
-  const goldMult = 1 + levelsGained * 0.1;
-  const scaledGold: [number, number] = [
-    Math.round(def.goldReward[0] * goldMult),
-    Math.round(def.goldReward[1] * goldMult),
-  ];
+  const scaledGold = expandGoldReward(def.goldRewardBase, progress.level);
 
   return {
     ...def,

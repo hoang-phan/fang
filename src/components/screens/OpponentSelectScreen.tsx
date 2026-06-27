@@ -66,6 +66,13 @@ export function OpponentSelectScreen({ gameState, dispatch, opponents }: Opponen
             <Button
               fullWidth
               variant="secondary"
+              onClick={() => dispatch({ type: 'GO_TO_PVP_LOBBY' })}
+            >
+              🆚 PvP Hot-Seat
+            </Button>
+            <Button
+              fullWidth
+              variant="secondary"
               onClick={handleReroll}
               disabled={!canAffordReroll}
             >
@@ -105,6 +112,13 @@ export function OpponentSelectScreen({ gameState, dispatch, opponents }: Opponen
           className="shrink-0"
         >
           🎲 {rerollCost}g
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => dispatch({ type: 'GO_TO_PVP_LOBBY' })}
+          className="shrink-0"
+        >
+          🆚
         </Button>
         <Button fullWidth onClick={handleFight} disabled={!selectedOpponent}>
           ⚔️ Fight!

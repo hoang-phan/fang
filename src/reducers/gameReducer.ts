@@ -11,6 +11,8 @@ export type GameAction =
   | { type: 'SET_PLAYER_NAME'; name: string }
   | { type: 'SELECT_OPPONENT'; opponentId: string }
   | { type: 'START_BATTLE'; opponentDef: OpponentDef }
+  | { type: 'START_PVP_BATTLE'; player2: PlayerStats }
+  | { type: 'GO_TO_PVP_LOBBY' }
   | { type: 'BATTLE_VICTORY'; finalBattleState: BattleState; goldSeed: number }
   | { type: 'BATTLE_DEFEAT' }
   | { type: 'CHOOSE_REWARD'; reward: RewardOption; shopItems?: EquipmentItem[]; replacePoolMoveId?: string }
@@ -105,8 +107,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const freshPlayer = restorePlayer(equippedPlayer);
 
       const battleState: BattleState = {
+        mode: 'pve',
         phase: 'player_turn',
         player: freshPlayer,
+        player2: null,
         opponent: { def: scaledOpponent, hp: scaledOpponent.maxHp },
         log: [{ id: 0, text: `A wild ${opponentDef.name} appeared!`, type: 'system' }],
         turn: 1,
@@ -118,8 +122,92 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         activeEffects: [],
         playerStunned: false,
         opponentStunned: false,
+        player2Stunned: false,
         hpRegenPerTurn: eqStats.hpRegen,
         mpRegenPerTurn: eqStats.mpRegen,
+        hpRegenPerTurnP2: 0,
+        mpRegenPerTurnP2: 0,
+      };
+      return {
+        ...state,
+        screen: 'battle' as GameScreen,
+        activeBattle: battleState,
+      };
+    }
+
+    case 'START_PVP_BATTLE': {
+      const { player2 } = action;
+
+      const p1EqStats = computeEquipmentStats(state.player.equipped);
+      const p1MergedStats = { ...state.player.stats };
+      for (const [el, bonus] of Object.entries(p1EqStats.elementDamage) as [ElementType, number][]) {
+        p1MergedStats[el] = (p1MergedStats[el] ?? 0) + bonus;
+      }
+      const p1Equipped: PlayerStats = {
+        ...state.player,
+        maxHp: state.player.maxHp + p1EqStats.hpBoost,
+        maxMp: state.player.maxMp + p1EqStats.mpBoost,
+        baseDamage: state.player.baseDamage + p1EqStats.bonusDamage,
+        baseDefense: state.player.baseDefense + p1EqStats.bonusDefense,
+        stats: p1MergedStats,
+      };
+      const freshP1 = restorePlayer(p1Equipped);
+
+      const p2EqStats = computeEquipmentStats(player2.equipped);
+      const p2MergedStats = { ...player2.stats };
+      for (const [el, bonus] of Object.entries(p2EqStats.elementDamage) as [ElementType, number][]) {
+        p2MergedStats[el] = (p2MergedStats[el] ?? 0) + bonus;
+      }
+      const p2Equipped: PlayerStats = {
+        ...player2,
+        maxHp: player2.maxHp + p2EqStats.hpBoost,
+        maxMp: player2.maxMp + p2EqStats.mpBoost,
+        baseDamage: player2.baseDamage + p2EqStats.bonusDamage,
+        baseDefense: player2.baseDefense + p2EqStats.bonusDefense,
+        stats: p2MergedStats,
+      };
+      const freshP2 = restorePlayer(p2Equipped);
+
+      // Build a dummy OpponentDef so the existing opponent slot stays typed correctly.
+      // In PvP the opponent slot is unused for logic — P2 lives in BattleState.player2.
+      const pvpOpponentStub: OpponentDef = {
+        id: '__pvp__',
+        name: freshP2.name,
+        sprite: freshP2.sprite,
+        type: 'normal',
+        maxHp: freshP2.maxHp,
+        baseDamage: freshP2.baseDamage,
+        baseDefense: freshP2.baseDefense,
+        damageVariance: 0,
+        moves: freshP2.moves.filter((m): m is NonNullable<typeof m> => m !== null),
+        goldRewardBase: 0,
+        goldReward: [0, 0],
+        flavourText: '',
+        level: freshP2.level,
+        baseXp: 0,
+      };
+
+      const battleState: BattleState = {
+        mode: 'pvp',
+        phase: 'player_turn',
+        player: freshP1,
+        player2: freshP2,
+        opponent: { def: pvpOpponentStub, hp: freshP2.maxHp },
+        log: [{ id: 0, text: `${freshP1.name} vs ${freshP2.name}!`, type: 'system' }],
+        turn: 1,
+        lastPlayerDamage: null,
+        lastOpponentDamage: null,
+        lastAttackElement: null,
+        lastAttackSide: null,
+        opponentMovesUsed: [],
+        activeEffects: [],
+        playerStunned: false,
+        opponentStunned: false,
+        player2Stunned: false,
+        hpRegenPerTurn: p1EqStats.hpRegen,
+        mpRegenPerTurn: p1EqStats.mpRegen,
+        hpRegenPerTurnP2: p2EqStats.hpRegen,
+        mpRegenPerTurnP2: p2EqStats.mpRegen,
       };
       return {
         ...state,
@@ -155,7 +243,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       // Player gains XP for winning.
       // Use state.player (canonical, no equipment bonuses) as the base — finalBattleState.player
       // is an ephemeral snapshot with equipment stats baked in and must not be persisted.
-      const playerXpGain = calcPlayerXpGain(opponentDef, true);
+      const playerXpGain = calcPlayerXpGain(opponentDef, true, state.player.level);
       const playerXpResult = applyXp(state.player.level, state.player.xp, playerXpGain);
       const updatedPlayer: PlayerStats = {
         ...state.player,
@@ -166,9 +254,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Opponent gains XP for losing (small amount)
       const oppProgress = getOpponentProgress(state.opponentProgress, opponentDef.id, opponentDef.level);
-      const oppXpGain = calcOpponentXpGain(opponentDef, false);
+      const oppXpGain = calcOpponentXpGain(opponentDef, false, state.player.level);
       const oppXpResult = applyXp(oppProgress.level, oppProgress.xp, oppXpGain);
 
+      console.log('playerXpGain', playerXpGain, '→ playerXpResult', playerXpResult);
+      console.log('oppXpGain', oppXpGain, '→ oppXpResult', oppXpResult);
       return {
         ...state,
         screen: 'reward',
@@ -191,7 +281,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       // Player gains small XP for losing
-      const playerXpGain = calcPlayerXpGain(opponentDef, false);
+      const playerXpGain = calcPlayerXpGain(opponentDef, false, state.player.level);
       const playerXpResult = applyXp(state.player.level, state.player.xp, playerXpGain);
       const updatedPlayer: PlayerStats = {
         ...state.player,
@@ -202,7 +292,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       // Opponent gains big XP for winning
       const oppProgress = getOpponentProgress(state.opponentProgress, opponentDef.id, opponentDef.level);
-      const oppXpGain = calcOpponentXpGain(opponentDef, true);
+      const oppXpGain = calcOpponentXpGain(opponentDef, true, state.player.level);
       const oppXpResult = applyXp(oppProgress.level, oppProgress.xp, oppXpGain);
 
       return {
@@ -272,6 +362,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'GO_TO_OPPONENT_SELECT': {
       return { ...state, screen: 'opponent_select', selectedOpponentId: null, lastDefeatedOpponent: null };
+    }
+
+    case 'GO_TO_PVP_LOBBY': {
+      return { ...state, screen: 'pvp_lobby' };
     }
 
     case 'GO_TO_START_SCREEN': {

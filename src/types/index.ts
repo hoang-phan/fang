@@ -104,12 +104,13 @@ export interface OpponentDef {
   baseDefense: number;
   damageVariance: number;
   moves: Move[];
-  goldReward: [number, number];
+  goldRewardBase: number;   // raw single value from backend; goldReward is derived as base * 1.2^(level-1) ±20%
+  goldReward: [number, number]; // [min, max] at current level — recomputed by getScaledOpponent
   unlockAfter?: string[];
   flavourText: string;
   level: number;            // opponent's level — determines XP rewards
-  xpReward: [number, number]; // [victoryXp for player, defeatXp for player]
-  avatars?: string[];       // full image URLs, one per opponent level
+  baseXp: number;           // base XP value used to compute win/loss rewards (replaces xpReward)
+  avatar?: string;          // single avatar image URL (no per-level variation)
   cinematics?: OpponentCinematic[]; // dynamic — any number, ordered by level
   gifts?: OpponentGift[];           // dynamic — any number of gift options
   conversations?: Conversation[];   // top-level chat conversations (one picked randomly on Chat)
@@ -131,6 +132,8 @@ export type BattlePhase =
   | 'player_turn'
   | 'resolving'
   | 'opponent_turn'
+  | 'p2_turn'
+  | 'handoff'
   | 'victory'
   | 'defeat';
 
@@ -159,8 +162,10 @@ export interface ActiveEffect {
 }
 
 export interface BattleState {
+  mode: 'pve' | 'pvp';
   phase: BattlePhase;
   player: PlayerStats;
+  player2: PlayerStats | null; // only set in pvp mode
   opponent: {
     def: OpponentDef;
     hp: number;
@@ -175,11 +180,14 @@ export interface BattleState {
   activeEffects: ActiveEffect[];
   playerStunned: boolean;   // true when player's action should be skipped this turn
   opponentStunned: boolean; // true when opponent's action should be skipped this turn
-  hpRegenPerTurn: number;   // from equipment hpRegen enhancements
-  mpRegenPerTurn: number;   // from equipment mpRegen enhancements
+  player2Stunned: boolean;  // pvp only: true when player2's action should be skipped this turn
+  hpRegenPerTurn: number;   // from equipment hpRegen enhancements (player 1)
+  mpRegenPerTurn: number;   // from equipment mpRegen enhancements (player 1)
+  hpRegenPerTurnP2: number; // pvp only: from equipment hpRegen enhancements (player 2)
+  mpRegenPerTurnP2: number; // pvp only: from equipment mpRegen enhancements (player 2)
 }
 
-export type GameScreen = 'start' | 'name_entry' | 'opponent_select' | 'battle' | 'reward' | 'shop' | 'gallery';
+export type GameScreen = 'start' | 'name_entry' | 'opponent_select' | 'battle' | 'reward' | 'shop' | 'gallery' | 'pvp_lobby';
 
 export interface RewardOption {
   type: 'learn_new' | 'upskill' | 'loot' | 'cinematic';

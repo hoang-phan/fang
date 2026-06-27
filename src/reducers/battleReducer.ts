@@ -121,7 +121,11 @@ export type BattleAction =
   | { type: 'USE_SPECIAL'; slotIndex: 0 | 1 | 2 | 3 }
   | { type: 'OPPONENT_TURN_RESOLVE' }
   | { type: 'TICK_RESOLVE' }
-  | { type: 'PLAYER_STUN_SKIP' };
+  | { type: 'PLAYER_STUN_SKIP' }
+  | { type: 'P2_USE_ATTACK' }
+  | { type: 'P2_USE_SPECIAL'; slotIndex: 0 | 1 | 2 | 3 }
+  | { type: 'P2_STUN_SKIP' }
+  | { type: 'P2_READY' }; // dismiss handoff interstitial and enter p2_turn
 
 export function battleReducer(state: BattleState, action: BattleAction): BattleState {
   switch (action.type) {
@@ -236,6 +240,19 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
 
     case 'OPPONENT_TURN_RESOLVE': {
       if (state.phase !== 'resolving') return state;
+
+      // In PvP mode, P1 just acted — transition to handoff instead of running AI
+      if (state.mode === 'pvp') {
+        return {
+          ...state,
+          phase: 'handoff',
+          lastPlayerDamage: null,
+          lastOpponentDamage: null,
+          lastAttackElement: null,
+          lastAttackSide: null,
+        };
+      }
+
       const { def } = state.opponent;
 
       if (state.opponentStunned) {
@@ -284,6 +301,146 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
       };
     }
 
+    case 'P2_READY': {
+      if (state.phase !== 'handoff') return state;
+      if (state.player2Stunned) {
+        return {
+          ...state,
+          phase: 'opponent_turn',
+          log: [...state.log, mkLog(`${state.player2?.name ?? 'Player 2'} is stunned and can't act!`, 'system')],
+          player2Stunned: false,
+        };
+      }
+      return { ...state, phase: 'p2_turn' };
+    }
+
+    case 'P2_USE_ATTACK': {
+      if (state.phase !== 'p2_turn' || !state.player2) return state;
+      if (state.player2Stunned) return state;
+
+      const p2 = state.player2;
+
+      const opponentEvasion = getEvasionPct(state.activeEffects, 'player');
+      if (opponentEvasion > 0 && Math.random() * 100 < opponentEvasion) {
+        return {
+          ...state,
+          phase: 'opponent_turn',
+          log: [...state.log, mkLog(`${state.player.name} evaded ${p2.name}'s attack!`, 'system')],
+          lastPlayerDamage: null,
+          lastOpponentDamage: null,
+          lastAttackElement: BASIC_ATTACK.type,
+          lastAttackSide: 'opponent',
+        };
+      }
+
+      const attackAllMult = getAttackAllBoost(state.activeEffects, 'opponent');
+      const defBoostPct = getDefenseBoostPct(state.activeEffects, 'player');
+      const boostedP1Defense = state.player.baseDefense * (1 + defBoostPct / 100);
+
+      const elementalDmg = calcMoveEffect(BASIC_ATTACK, getPlayerDefensiveType(state.player.stats), p2.stats);
+      const rawDmg = Math.max(1, Math.round((elementalDmg + p2.baseDamage) * attackAllMult - Math.floor(boostedP1Defense * 0.5)));
+      const shield = sumShield(state.activeEffects, 'player');
+      const dmg = Math.max(0, rawDmg - shield);
+      const newP1Hp = Math.max(0, state.player.hp - dmg);
+      const isDefeat = checkDefeat(newP1Hp);
+
+      let msg = `${p2.name} attacked for ${dmg} damage!`;
+      if (shield > 0 && rawDmg > 0) msg += ` (${state.player.name}'s shield absorbed ${Math.min(shield, rawDmg)})`;
+
+      return {
+        ...state,
+        phase: isDefeat ? 'defeat' : 'opponent_turn',
+        player: { ...state.player, hp: newP1Hp },
+        opponent: { ...state.opponent, hp: state.player2.hp },
+        log: [...state.log, mkLog(msg, 'opponent')],
+        lastOpponentDamage: dmg,
+        lastPlayerDamage: null,
+        lastAttackElement: BASIC_ATTACK.type,
+        lastAttackSide: 'opponent',
+      };
+    }
+
+    case 'P2_USE_SPECIAL': {
+      if (state.phase !== 'p2_turn' || !state.player2) return state;
+      if (state.player2Stunned) return state;
+
+      const p2 = state.player2;
+      const move = p2.moves[action.slotIndex];
+      if (!move) return state;
+      if (p2.mp < move.mpCost) return state;
+
+      const playerDefType = getPlayerDefensiveType(state.player.stats);
+
+      if (move.baseDamage > 0) {
+        const p1Evasion = getEvasionPct(state.activeEffects, 'player');
+        if (p1Evasion > 0 && Math.random() * 100 < p1Evasion) {
+          return {
+            ...state,
+            phase: 'opponent_turn',
+            player2: { ...p2, mp: p2.mp - move.mpCost },
+            log: [...state.log, mkLog(`${state.player.name} evaded ${p2.name}'s ${move.name}!`, 'system')],
+            lastOpponentDamage: null,
+            lastPlayerDamage: null,
+            lastAttackElement: move.type,
+            lastAttackSide: 'opponent',
+          };
+        }
+      }
+
+      const ctx = applyMoveEffects(
+        {
+          casterHp: p2.hp, casterMaxHp: p2.maxHp,
+          targetHp: state.player.hp, targetMaxHp: state.player.maxHp,
+          activeEffects: state.activeEffects, logs: [],
+          casterSide: 'opponent', casterName: p2.name,
+          targetSide: 'player', targetName: state.player.name,
+          move, lastDamageDealt: 0, lastRawEffect: 0,
+          attackerBaseDamage: p2.baseDamage,
+          defenderBaseDefense: state.player.baseDefense,
+          attackAllMult: getAttackAllBoost(state.activeEffects, 'opponent'),
+          attackElemMult: getAttackElementBoost(state.activeEffects, 'opponent', move.type),
+          defenderDefBoostPct: getDefenseBoostPct(state.activeEffects, 'player'),
+        } satisfies MoveContext,
+        playerDefType,
+        p2.stats,
+      );
+
+      const isDefeat = move.baseDamage > 0 && checkDefeat(ctx.targetHp);
+
+      const p1JustStunned = ctx.activeEffects.some(
+        e => e.target === 'player' && e.stunned && !state.activeEffects.some(prev => prev === e),
+      );
+
+      return {
+        ...state,
+        phase: isDefeat ? 'defeat' : 'opponent_turn',
+        player: { ...state.player, hp: ctx.targetHp },
+        player2: { ...p2, hp: ctx.casterHp, mp: p2.mp - move.mpCost },
+        opponent: { ...state.opponent, hp: state.player2.hp },
+        log: [...state.log, ...ctx.logs],
+        activeEffects: ctx.activeEffects,
+        playerStunned: p1JustStunned ? true : state.playerStunned,
+        lastOpponentDamage: move.baseDamage > 0 ? ctx.lastRawEffect : null,
+        lastPlayerDamage: null,
+        lastAttackElement: move.type,
+        lastAttackSide: 'opponent',
+      };
+    }
+
+    case 'P2_STUN_SKIP': {
+      if (state.phase !== 'p2_turn' || !state.player2Stunned) return state;
+      return {
+        ...state,
+        phase: 'opponent_turn',
+        log: [...state.log, mkLog(`${state.player2?.name ?? 'Player 2'} is stunned and can't act!`, 'system')],
+        player2Stunned: false,
+        lastPlayerDamage: null,
+        lastOpponentDamage: null,
+        lastAttackElement: null,
+        lastAttackSide: null,
+      };
+    }
+
     case 'TICK_RESOLVE': {
       if (state.phase !== 'opponent_turn') return state;
 
@@ -291,9 +448,12 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
       let newPlayerHp = state.player.hp;
       let newPlayerMp = state.player.mp;
       let newOpponentHp = state.opponent.hp;
+      let newP2Hp = state.player2?.hp ?? 0;
+      let newP2Mp = state.player2?.mp ?? 0;
       const remainingEffects: ActiveEffect[] = [];
       let nextPlayerStunned = false;
       let nextOpponentStunned = false;
+      let nextPlayer2Stunned = false;
 
       for (const eff of state.activeEffects) {
         if (eff.damage > 0) {
@@ -309,6 +469,8 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         if (eff.stunned && !eff.skipFirstTick) {
           if (eff.target === 'player') nextPlayerStunned = true;
           else nextOpponentStunned = true;
+          // In PvP 'opponent' target means P2
+          if (state.mode === 'pvp' && eff.target === 'opponent') nextPlayer2Stunned = true;
         }
 
         // hp/mp boost regen ticks each turn (on skipFirstTick round too — applied immediately)
@@ -400,6 +562,25 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         }
       }
 
+      // PvP: P2 equipment regen
+      if (state.mode === 'pvp' && state.player2) {
+        const p2 = state.player2;
+        if (state.hpRegenPerTurnP2 > 0 && newP2Hp > 0) {
+          const healed = Math.min(state.hpRegenPerTurnP2, p2.maxHp - newP2Hp);
+          if (healed > 0) {
+            newP2Hp += healed;
+            newLogs.push(mkLog(`${p2.name} regenerated ${healed} HP.`, 'system'));
+          }
+        }
+        if (state.mpRegenPerTurnP2 > 0) {
+          const restored = Math.min(state.mpRegenPerTurnP2, p2.maxMp - newP2Mp);
+          if (restored > 0) {
+            newP2Mp += restored;
+            newLogs.push(mkLog(`${p2.name} recovered ${restored} MP.`, 'system'));
+          }
+        }
+      }
+
       const isVictory = checkVictory(newOpponentHp);
       const isDefeat = !isVictory && checkDefeat(newPlayerHp);
 
@@ -408,6 +589,7 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         phase: isVictory ? 'victory' : isDefeat ? 'defeat' : 'player_turn',
         turn: state.turn + 1,
         player: { ...state.player, hp: newPlayerHp, mp: newPlayerMp },
+        player2: state.player2 ? { ...state.player2, hp: newP2Hp, mp: newP2Mp } : null,
         opponent: { ...state.opponent, hp: newOpponentHp },
         log: [...state.log, ...newLogs],
         lastPlayerDamage: null,
@@ -417,6 +599,7 @@ export function battleReducer(state: BattleState, action: BattleAction): BattleS
         activeEffects: remainingEffects,
         playerStunned: nextPlayerStunned,
         opponentStunned: nextOpponentStunned,
+        player2Stunned: nextPlayer2Stunned,
       };
     }
 

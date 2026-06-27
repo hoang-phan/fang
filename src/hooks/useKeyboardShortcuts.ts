@@ -72,15 +72,27 @@ export function useOpponentSelectKeys({ opponents, selectedOpponentId, onNavigat
 }
 
 interface ConversationKeys {
-  advanceRef: React.RefObject<() => void>;
-  isMiniGameRef: React.RefObject<boolean>;
+  advance: () => void;
+  isMiniGame: boolean;
   miniGameClickRef: React.RefObject<(() => void) | null>;
-  isWordsCatcherRef: React.RefObject<boolean>;
+  isWordsCatcher: boolean;
   catcherMoveLeftRef: React.RefObject<(() => void) | null>;
   catcherMoveRightRef: React.RefObject<(() => void) | null>;
+  isMultiChoice: boolean;
+  multiChoiceSelectRef: React.RefObject<((index: number) => void) | null>;
 }
 
-export function useConversationKeys({ advanceRef, isMiniGameRef, miniGameClickRef, isWordsCatcherRef, catcherMoveLeftRef, catcherMoveRightRef }: ConversationKeys) {
+export function useConversationKeys({ advance, isMiniGame, miniGameClickRef, isWordsCatcher, catcherMoveLeftRef, catcherMoveRightRef, isMultiChoice, multiChoiceSelectRef }: ConversationKeys) {
+  const advanceRef = useRef(advance);
+  const isMiniGameRef = useRef(isMiniGame);
+  const isWordsCatcherRef = useRef(isWordsCatcher);
+  const isMultiChoiceRef = useRef(isMultiChoice);
+
+  useEffect(() => { advanceRef.current = advance; }, [advance]);
+  useEffect(() => { isMiniGameRef.current = isMiniGame; }, [isMiniGame]);
+  useEffect(() => { isWordsCatcherRef.current = isWordsCatcher; }, [isWordsCatcher]);
+  useEffect(() => { isMultiChoiceRef.current = isMultiChoice; }, [isMultiChoice]);
+
   useEffect(() => {
     if (!isDesktop()) return;
 
@@ -88,6 +100,13 @@ export function useConversationKeys({ advanceRef, isMiniGameRef, miniGameClickRe
       if (isWordsCatcherRef.current) {
         if (KEYS_CATCHER_LEFT.includes(e.key)) { e.preventDefault(); catcherMoveLeftRef.current?.(); return; }
         if (KEYS_CATCHER_RIGHT.includes(e.key)) { e.preventDefault(); catcherMoveRightRef.current?.(); return; }
+      }
+      if (isMultiChoiceRef.current) {
+        if (e.key === '1') { e.preventDefault(); multiChoiceSelectRef.current?.(0); return; }
+        if (e.key === '2') { e.preventDefault(); multiChoiceSelectRef.current?.(1); return; }
+        if (e.key === '3') { e.preventDefault(); multiChoiceSelectRef.current?.(2); return; }
+        if (e.key === '4') { e.preventDefault(); multiChoiceSelectRef.current?.(3); return; }
+        return;
       }
       if (KEYS_ADVANCE.includes(e.key)) {
         if (isMiniGameRef.current) {
@@ -135,6 +154,48 @@ export function useBattleKeys({ isPlayerTurn, moves, playerMp, onAttack, onSpeci
 
     const handler = (e: KeyboardEvent) => {
       if (!isPlayerTurnRef.current) return;
+      if (KEYS_ATTACK.includes(e.key)) {
+        e.preventDefault();
+        onAttackRef.current();
+        return;
+      }
+      const slotMap: Record<string, 0 | 1 | 2 | 3> = { '1': 0, '2': 1, '3': 2, '4': 3 };
+      const slot = slotMap[e.key];
+      if (slot !== undefined) {
+        e.preventDefault();
+        const move = movesRef.current[slot];
+        if (move && playerMpRef.current >= move.mpCost) {
+          onSpecialRef.current(slot);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+}
+
+// ── P2 battle keys (PvP hot-seat) ────────────────────────────────────────────
+// Same bindings as P1 but only active during p2_turn phase
+
+export function useP2BattleKeys({ isP2Turn, moves, playerMp, onAttack, onSpecial }: Omit<BattleKeys, 'isPlayerTurn'> & { isP2Turn: boolean }) {
+  const isP2TurnRef = useRef(isP2Turn);
+  const movesRef = useRef(moves);
+  const playerMpRef = useRef(playerMp);
+  const onAttackRef = useRef(onAttack);
+  const onSpecialRef = useRef(onSpecial);
+
+  useEffect(() => { isP2TurnRef.current = isP2Turn; }, [isP2Turn]);
+  useEffect(() => { movesRef.current = moves; }, [moves]);
+  useEffect(() => { playerMpRef.current = playerMp; }, [playerMp]);
+  useEffect(() => { onAttackRef.current = onAttack; }, [onAttack]);
+  useEffect(() => { onSpecialRef.current = onSpecial; }, [onSpecial]);
+
+  useEffect(() => {
+    if (!isDesktop()) return;
+
+    const handler = (e: KeyboardEvent) => {
+      if (!isP2TurnRef.current) return;
       if (KEYS_ATTACK.includes(e.key)) {
         e.preventDefault();
         onAttackRef.current();

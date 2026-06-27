@@ -1,7 +1,7 @@
 import type { GameState, OpponentDef, EquipmentItem } from '../types';
 
 const SAVE_KEY = 'fang_game_v1';
-const OPPONENTS_CACHE_KEY = 'fang_opponents_cache_v1';
+const OPPONENTS_CACHE_KEY = 'fang_opponents_cache_v2';
 const ITEMS_CACHE_KEY = 'fang_items_cache_v1';
 
 export function hasSaveData(): boolean {

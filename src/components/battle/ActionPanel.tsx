@@ -1,21 +1,20 @@
-import type { Dispatch } from 'react';
 import type { PlayerStats, ElementType } from '../../types';
-import type { BattleAction } from '../../reducers/battleReducer';
 import { MoveButton } from './MoveButton';
 
 interface ActionPanelProps {
   player: PlayerStats;
   isPlayerTurn: boolean;
   opponentType?: ElementType;
-  dispatch: Dispatch<BattleAction>;
+  onAttack: () => void;
+  onSpecial: (slot: 0 | 1 | 2 | 3) => void;
 }
 
-export function ActionPanel({ player, isPlayerTurn, opponentType, dispatch }: ActionPanelProps) {
+export function ActionPanel({ player, isPlayerTurn, onAttack, onSpecial }: ActionPanelProps) {
   return (
     <div className="bg-theme-base border-t border-border-mid p-3 lg:p-4 flex flex-col gap-2 lg:gap-3">
       {/* Attack button */}
       <button
-        onClick={() => dispatch({ type: 'USE_ATTACK' })}
+        onClick={onAttack}
         disabled={!isPlayerTurn}
         className={`
           w-full py-2 lg:py-3 rounded-lg font-bold text-sm transition-all duration-150 flex items-center justify-center gap-2
@@ -38,7 +37,7 @@ export function ActionPanel({ player, isPlayerTurn, opponentType, dispatch }: Ac
             move={move}
             playerMp={player.mp}
             disabled={!isPlayerTurn}
-            onClick={() => dispatch({ type: 'USE_SPECIAL', slotIndex: i as 0 | 1 | 2 | 3 })}
+            onClick={() => onSpecial(i as 0 | 1 | 2 | 3)}
           />
         ))}
       </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Conversation } from '../../types';
 import { Sprite } from './Sprite';
 import { useConversationAdvance } from '../../hooks/useConversationAdvance';
@@ -22,6 +22,68 @@ function speakerLabel(role: string, opponentName: string, heroName: string): str
   return null;
 }
 
+type MultiChoice = { label: string; correct: boolean };
+
+function parseMultiChoice(content: string): MultiChoice[] | null {
+  const match = content.match(/^\(multichoice:([^)]+)\)$/);
+  if (!match) return null;
+  const parts = match[1].split(':');
+  const opts: MultiChoice[] = parts.map((label, i) => ({ label, correct: i === 0 }));
+  for (let i = opts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [opts[i], opts[j]] = [opts[j], opts[i]];
+  }
+  return opts;
+}
+
+interface MultiChoicePromptProps {
+  content: string;
+  onAdvance: () => void;
+  registerSelectByIndex: (fn: (index: number) => void) => void;
+}
+
+function MultiChoicePrompt({ content, onAdvance, registerSelectByIndex }: MultiChoicePromptProps) {
+  const [options] = useState<MultiChoice[]>(() => parseMultiChoice(content) ?? []);
+  const [selected, setSelected] = useState<MultiChoice | null>(null);
+
+  const handleSelect = useCallback((choice: MultiChoice) => {
+    if (selected) return;
+    setSelected(choice);
+    setTimeout(onAdvance, 900);
+  }, [selected, onAdvance]);
+
+  useEffect(() => {
+    registerSelectByIndex((index: number) => {
+      if (selected || !options[index]) return;
+      handleSelect(options[index]);
+    });
+  });
+
+  return (
+    <div className="relative shrink-0 pb-4 px-4 flex flex-col gap-3 mx-auto w-full">
+      {options.map((choice, i) => {
+        const isSelected = selected?.label === choice.label;
+        const revealed = !!selected;
+        let bg = 'bg-theme-surface border-border-mid';
+        if (isSelected) bg = choice.correct ? 'bg-green-800 border-green-500' : 'bg-red-900 border-red-500';
+        else if (revealed && choice.correct) bg = 'bg-green-900/50 border-green-700';
+        return (
+          <button
+            key={choice.label}
+            onClick={() => handleSelect(choice)}
+            disabled={!!selected}
+            className={`w-full rounded-xl border p-4 text-left text-lg font-bold transition-colors ${bg}`}
+            style={{ color: '#ffe0ee' }}
+          >
+            <span className="text-text-faint text-sm mr-2">{i + 1}.</span>
+            {choice.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ConversationOverlay({
   conversations,
   opponentName,
@@ -34,19 +96,24 @@ export function ConversationOverlay({
   const catcherMoveLeftRef = useRef<(() => void) | null>(null);
   const catcherMoveRightRef = useRef<(() => void) | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const advanceRef = useRef(advance);
-  const isMiniGameRef = useRef(false);
-  const isWordsCatcherRef = useRef(false);
-
-  useEffect(() => {
-    advanceRef.current = advance;
-    isMiniGameRef.current = !!(current && current.content.startsWith('(click-game'));
-    isWordsCatcherRef.current = !!(current && current.content.startsWith('(words-catcher'));
-  });
+  const multiChoiceSelectRef = useRef<((index: number) => void) | null>(null);
 
   const isShufflePuzzle = !!(current && current.content.startsWith('(shuffle-puzzle'));
+  const currentContent = current?.content ?? '';
+  const isMultiChoice = currentContent.startsWith('(multichoice:');
+  const isMiniGame = !!(current && current.content.startsWith('(click-game'));
+  const isWordsCatcher = !!(current && current.content.startsWith('(words-catcher'));
 
-  useConversationKeys({ advanceRef, isMiniGameRef, miniGameClickRef: minigameClickRef, isWordsCatcherRef, catcherMoveLeftRef, catcherMoveRightRef });
+  useConversationKeys({
+    advance,
+    isMiniGame,
+    miniGameClickRef: minigameClickRef,
+    isWordsCatcher,
+    catcherMoveLeftRef,
+    catcherMoveRightRef,
+    isMultiChoice,
+    multiChoiceSelectRef,
+  });
 
   const isConversationVideo = currentConv?.backgroundUrl?.endsWith('.mp4');
   const fileParts = currentConv?.backgroundUrl?.split('/');
@@ -78,16 +145,14 @@ export function ConversationOverlay({
   }
 
   const isHero = current.role === 'hero';
-  const isMinigame = current.content.startsWith('(click-game');
-  const isWordsCatcher = current.content.startsWith('(words-catcher');
-  const isAnyMinigame = isMinigame || isWordsCatcher || isShufflePuzzle;
-  const isDialogueMode = !isAnyMinigame && current.content !== '(...)';
+  const isAnyMinigame = isMiniGame || isWordsCatcher || isShufflePuzzle;
+  const isDialogueMode = !isAnyMinigame && !isMultiChoice && current.content !== '(...)';
   const advanceLabel = isVeryLast ? 'Close ▼' : 'Continue ▼';
   const speaker = speakerLabel(current.role, opponentName, heroName);
 
-  const handleOuterClick = isMinigame
+  const handleOuterClick = isMiniGame
     ? () => minigameClickRef.current?.()
-    : isWordsCatcher || isShufflePuzzle
+    : isWordsCatcher || isShufflePuzzle || isMultiChoice
     ? undefined
     : advance;
 
@@ -129,7 +194,7 @@ export function ConversationOverlay({
         />
       )}
 
-      {(isDialogueMode || isMinigame) && (
+      {(isDialogueMode || isMiniGame || isMultiChoice) && (
         <div className="relative flex-1 overflow-hidden">
           {current.sprites.map((sprite, i) => <Sprite key={i} sprite={sprite} />)}
         </div>
@@ -156,7 +221,16 @@ export function ConversationOverlay({
         />
       )}
 
-      {isMinigame ? (
+      {isMultiChoice && (
+        <MultiChoicePrompt
+          key={currentContent}
+          content={currentContent}
+          onAdvance={advance}
+          registerSelectByIndex={fn => { multiChoiceSelectRef.current = fn; }}
+        />
+      )}
+
+      {isMiniGame ? (
         <ClickMiniGame
           description={current.content.match(/\(click-game:([^)]*)\)/)?.[1] ?? ''}
           onWin={advance}
@@ -164,7 +238,7 @@ export function ConversationOverlay({
           registerClick={fn => { minigameClickRef.current = fn; }}
           onFillChange={handleFillChange}
         />
-      ) : isWordsCatcher ? null : isDialogueMode ? (
+      ) : isWordsCatcher ? null : isMultiChoice ? null : isDialogueMode ? (
         <div className="relative shrink-0 pb-1 px-4 flex flex-col items-start mx-auto w-full">
           <div
             className="w-full rounded-xl rounded-tl-none border border-border-mid p-5 shadow-lg"

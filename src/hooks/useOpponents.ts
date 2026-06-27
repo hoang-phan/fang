@@ -4,6 +4,7 @@ import {
   saveOpponentsCache, loadOpponentsCache,
   saveItemsCache, loadItemsCache,
 } from '../utils/storage';
+import { expandGoldReward } from '../utils/xp';
 
 export const API_BASE = 'http://localhost:3000';
 
@@ -22,21 +23,55 @@ function prefixConversations(conversations?: Conversation[]): Conversation[] | u
   }));
 }
 
-function enrichOpponents(data: OpponentDef[]): OpponentDef[] {
-  return data.map(opp => ({
-    baseDefense: 0,
-    ...opp,
-    avatars: opp.avatars?.map(path => prefixUrl(path)),
-    cinematics: opp.cinematics?.map((c: OpponentCinematic) => ({
-      ...c,
-      conversations: prefixConversations(c.conversations),
-    })),
-    gifts: opp.gifts?.map((g: OpponentGift) => ({
-      ...g,
-      conversations: prefixConversations(g.conversations),
-    })),
-    conversations: prefixConversations(opp.conversations),
-  }));
+
+// Raw shape as the backend sends it — fields differ from OpponentDef
+interface RawOpponent {
+  id: string;
+  name: string;
+  sprite?: string;
+  type: string;
+  maxHp: number;
+  baseDamage: number;
+  baseDefense?: number;
+  damageVariance: number;
+  moves: OpponentDef['moves'];
+  goldReward: number;       // single value; we expand to [min, max]
+  xpReward: number;         // backend name for baseXp
+  unlockAfter?: string[];
+  flavourText?: string | null;
+  level: number | null;
+  avatar?: string;
+  cinematics?: OpponentCinematic[];
+  gifts?: OpponentGift[];
+  conversations?: Conversation[];
+}
+
+function enrichOpponents(data: RawOpponent[]): OpponentDef[] {
+  return data.map(opp => {
+    const level = opp.level ?? 1;
+    const goldRewardBase = opp.goldReward ?? 0;
+    const baseXp = opp.xpReward ?? level * 50;
+    return {
+      baseDefense: 0,
+      ...opp,
+      level,
+      sprite: opp.sprite ?? '❓',
+      flavourText: opp.flavourText ?? '',
+      baseXp,
+      goldRewardBase,
+      goldReward: expandGoldReward(goldRewardBase, level),
+      avatar: opp.avatar ? prefixUrl(opp.avatar) : undefined,
+      cinematics: opp.cinematics?.map((c: OpponentCinematic) => ({
+        ...c,
+        conversations: prefixConversations(c.conversations),
+      })),
+      gifts: opp.gifts?.map((g: OpponentGift) => ({
+        ...g,
+        conversations: prefixConversations(g.conversations),
+      })),
+      conversations: prefixConversations(opp.conversations),
+    } as OpponentDef;
+  });
 }
 
 export function useOpponents(): { opponents: OpponentDef[]; loading: boolean } {
@@ -47,7 +82,7 @@ export function useOpponents(): { opponents: OpponentDef[]; loading: boolean } {
   useEffect(() => {
     fetch(`${API_BASE}/api/v1/opponents`)
       .then(r => r.json())
-      .then((data: OpponentDef[]) => {
+      .then((data: RawOpponent[]) => {
         const enriched = enrichOpponents(data);
         saveOpponentsCache(enriched);
         setOpponents(enriched);

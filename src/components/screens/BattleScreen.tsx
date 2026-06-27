@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import type { BattleState, OpponentDef } from '../../types';
 import type { GameAction } from '../../reducers/gameReducer';
 import { useBattle } from '../../hooks/useBattle';
-import { useBattleKeys } from '../../hooks/useKeyboardShortcuts';
+import { useBattleKeys, useP2BattleKeys } from '../../hooks/useKeyboardShortcuts';
 import { BattleArena } from '../battle/BattleArena';
 import { CombatantCard } from '../battle/CombatantCard';
 import { BattleLog } from '../battle/BattleLog';
@@ -17,25 +17,30 @@ interface BattleScreenProps {
   gameDispatch: Dispatch<GameAction>;
 }
 
-function getAvatarUrl(opp: OpponentDef, level: number): string | undefined {
-  const avatars = opp.avatars;
-  if (!avatars?.length) return undefined;
-  const idx = Math.min(level, 5) - 1;
-  return avatars[idx] ?? avatars[avatars.length - 1];
-}
 
 export function BattleScreen({ initialBattleState, opponents, gameDispatch }: BattleScreenProps) {
-  const { state, dispatch, isPlayerTurn } = useBattle(initialBattleState);
+  const { state, dispatch, isPlayerTurn, isP2Turn, isHandoff } = useBattle(initialBattleState);
   const victoryFired = useRef(false);
   const defeatFired = useRef(false);
   const goldSeed = useRef(Math.random()).current;
 
+  const isPvP = state.mode === 'pvp';
+  const p2 = state.player2;
+
   useBattleKeys({
-    isPlayerTurn,
+    isPlayerTurn: isPlayerTurn && !isHandoff,
     moves: state.player.moves,
     playerMp: state.player.mp,
     onAttack: () => dispatch({ type: 'USE_ATTACK' }),
     onSpecial: (slot) => dispatch({ type: 'USE_SPECIAL', slotIndex: slot }),
+  });
+
+  useP2BattleKeys({
+    isP2Turn,
+    moves: p2?.moves ?? [null, null, null, null],
+    playerMp: p2?.mp ?? 0,
+    onAttack: () => dispatch({ type: 'P2_USE_ATTACK' }),
+    onSpecial: (slot) => dispatch({ type: 'P2_USE_SPECIAL', slotIndex: slot }),
   });
 
   useEffect(() => {
@@ -86,11 +91,13 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
 
   const phaseLabel = (() => {
     switch (state.phase) {
-      case 'player_turn': return 'Your turn';
-      case 'resolving': return `${state.opponent.def.name} is readying...`;
-      case 'opponent_turn': return `${state.opponent.def.name} attacks!`;
-      case 'victory': return '🏆 Victory!';
-      case 'defeat': return '💀 Defeated!';
+      case 'player_turn': return isPvP ? `${state.player.name}'s turn` : 'Your turn';
+      case 'resolving': return isPvP ? 'Passing to next player...' : `${state.opponent.def.name} is readying...`;
+      case 'handoff': return `Ready, ${p2?.name ?? 'Player 2'}?`;
+      case 'p2_turn': return `${p2?.name ?? 'Player 2'}'s turn`;
+      case 'opponent_turn': return isPvP ? 'Resolving...' : `${state.opponent.def.name} attacks!`;
+      case 'victory': return isPvP ? `${state.player.name} wins!` : '🏆 Victory!';
+      case 'defeat': return isPvP ? `${p2?.name ?? 'Player 2'} wins!` : '💀 Defeated!';
     }
   })();
 
@@ -104,7 +111,7 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
         <span className={`font-mono text-sm font-bold ${
           state.phase === 'victory' ? 'text-accent' :
           state.phase === 'defeat' ? 'text-red-400' :
-          isPlayerTurn ? 'text-green-400' : 'text-orange-400'
+          (isPlayerTurn || isP2Turn) ? 'text-green-400' : 'text-orange-400'
         }`}>
           {phaseLabel}
         </span>
@@ -117,8 +124,24 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
           state.phase === 'victory' ? 'bg-accent-subtle/40' : 'bg-red-900/30'
         }`}>
           <div className="text-6xl animate-bounce">
-            {state.phase === 'victory' ? '🏆' : '💀'}
+            {state.phase === 'victory' ? '🏆' : isPvP ? '🏆' : '💀'}
           </div>
+        </div>
+      )}
+
+      {/* PvP handoff interstitial — covers the screen so P2 can't read P1's state */}
+      {isHandoff && p2 && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-theme-base gap-6">
+          <div className="text-4xl">{p2.sprite}</div>
+          <p className="font-pixel text-lg text-text-base text-center px-8">
+            Pass the device to<br /><span className="text-accent">{p2.name}</span>
+          </p>
+          <button
+            onClick={() => dispatch({ type: 'P2_READY' })}
+            className="px-8 py-3 rounded-lg bg-accent hover:bg-accent-hover text-accent-text font-bold text-sm"
+          >
+            Ready!
+          </button>
         </div>
       )}
 
@@ -127,10 +150,7 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
           <CombatantCard
             name={state.opponent.def.name}
             sprite={state.opponent.def.sprite}
-            avatarUrl={getAvatarUrl(
-              opponents.find(o => o.id === state.opponent.def.id) ?? state.opponent.def,
-              state.opponent.def.level,
-            )}
+            avatarUrl={(opponents.find(o => o.id === state.opponent.def.id) ?? state.opponent.def).avatar}
             hp={state.opponent.hp}
             maxHp={state.opponent.def.maxHp}
             damageFlashKey={opponentFlashKey}
@@ -183,12 +203,23 @@ export function BattleScreen({ initialBattleState, opponents, gameDispatch }: Ba
         }
         middle={<BattleLog entries={state.log} />}
         bottom={
-          <ActionPanel
-            player={state.player}
-            isPlayerTurn={isPlayerTurn}
-            opponentType={state.opponent.def.type}
-            dispatch={dispatch}
-          />
+          isP2Turn && p2 ? (
+            <ActionPanel
+              player={p2}
+              isPlayerTurn={true}
+              opponentType={state.opponent.def.type}
+              onAttack={() => dispatch({ type: 'P2_USE_ATTACK' })}
+              onSpecial={(slot) => dispatch({ type: 'P2_USE_SPECIAL', slotIndex: slot })}
+            />
+          ) : (
+            <ActionPanel
+              player={state.player}
+              isPlayerTurn={isPlayerTurn}
+              opponentType={state.opponent.def.type}
+              onAttack={() => dispatch({ type: 'USE_ATTACK' })}
+              onSpecial={(slot) => dispatch({ type: 'USE_SPECIAL', slotIndex: slot })}
+            />
+          )
         }
       />
     </div>
