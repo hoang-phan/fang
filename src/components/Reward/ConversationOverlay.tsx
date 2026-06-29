@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Conversation } from '../../types';
 import { Sprite } from './Sprite';
 import { useConversationAdvance } from '../../hooks/useConversationAdvance';
@@ -30,6 +30,9 @@ export function ConversationOverlay({
   onFail,
 }: ConversationOverlayProps) {
   const { currentConv, current, isVeryLast, advance, bgFading, onBgFadeOutEnd } = useConversationAdvance(conversations, onComplete);
+  const [spriteFading, setSpriteFading] = useState(false);
+  const [visibleSprites, setVisibleSprites] = useState(() => current?.sprites ?? []);
+  const prevSpriteKey = useRef<string>('');
   const minigameClickRef = useRef<(() => void) | null>(null);
   const catcherMoveLeftRef = useRef<(() => void) | null>(null);
   const catcherMoveRightRef = useRef<(() => void) | null>(null);
@@ -52,6 +55,25 @@ export function ConversationOverlay({
     isMultiChoice,
     multiChoiceSelectRef,
   });
+
+  // Fade sprites out when they change between chats, then swap and fade back in.
+  useEffect(() => {
+    const newKey = (current?.sprites ?? []).map(s => s.url).join('|');
+    if (newKey === prevSpriteKey.current) return;
+    if (!prevSpriteKey.current) {
+      // First render — just record the key, no fade needed.
+      prevSpriteKey.current = newKey;
+      setVisibleSprites(current?.sprites ?? []);
+      return;
+    }
+    prevSpriteKey.current = newKey;
+    setSpriteFading(true);
+    const t = setTimeout(() => {
+      setVisibleSprites(current?.sprites ?? []);
+      setSpriteFading(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [current]);
 
   const isConversationVideo = currentConv?.backgroundUrl?.endsWith('.mp4');
   const isConversationImage = !!(currentConv?.backgroundUrl && !isConversationVideo);
@@ -147,8 +169,11 @@ export function ConversationOverlay({
       )}
 
       {(isDialogueMode || isMiniGame || isMultiChoice) && (
-        <div className="relative flex-1 overflow-hidden">
-          {current.sprites.map((sprite, i) => <Sprite key={i} sprite={sprite} />)}
+        <div
+          className="relative flex-1 overflow-hidden transition-opacity duration-300"
+          style={{ opacity: bgFading || spriteFading ? 0 : 1 }}
+        >
+          {visibleSprites.map((sprite, i) => <Sprite key={i} sprite={sprite} />)}
         </div>
       )}
 
