@@ -33,11 +33,25 @@ export function ConversationOverlay({
   const [spriteFading, setSpriteFading] = useState(false);
   const [visibleSprites, setVisibleSprites] = useState(() => current?.sprites ?? []);
   const prevSpriteKey = useRef<string>('');
+  const spriteFadingRef = useRef(false);
+  const lastAdvanceTimeRef = useRef(0);
   const minigameClickRef = useRef<(() => void) | null>(null);
   const catcherMoveLeftRef = useRef<(() => void) | null>(null);
   const catcherMoveRightRef = useRef<(() => void) | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const multiChoiceSelectRef = useRef<((index: number) => void) | null>(null);
+
+  // Keep spriteFadingRef in sync so guardedAdvance can read it without stale closure.
+  useEffect(() => { spriteFadingRef.current = spriteFading; }, [spriteFading]);
+
+  // Throttled advance: ignore calls within 200ms of the last one, and block while sprites are fading.
+  const guardedAdvance = useCallback(() => {
+    if (spriteFadingRef.current) return;
+    const now = Date.now();
+    if (now - lastAdvanceTimeRef.current < 200) return;
+    lastAdvanceTimeRef.current = now;
+    advance();
+  }, [advance]);
 
   const isShufflePuzzle = !!(current && current.content.startsWith('(shuffle-puzzle'));
   const currentContent = current?.content ?? '';
@@ -46,7 +60,7 @@ export function ConversationOverlay({
   const isWordsCatcher = !!(current && current.content.startsWith('(words-catcher'));
 
   useConversationKeys({
-    advance,
+    advance: guardedAdvance,
     isMiniGame,
     miniGameClickRef: minigameClickRef,
     isWordsCatcher,
@@ -130,7 +144,7 @@ export function ConversationOverlay({
     ? () => minigameClickRef.current?.()
     : isWordsCatcher || isShufflePuzzle || isMultiChoice
     ? undefined
-    : advance;
+    : guardedAdvance;
 
   return (
     <div
@@ -191,7 +205,7 @@ export function ConversationOverlay({
         mode={currentMode}
         current={current}
         currentContent={currentContent}
-        advance={advance}
+        advance={guardedAdvance}
         advanceLabel={advanceLabel}
         speaker={speaker}
         isHero={isHero}
