@@ -4,7 +4,7 @@ import type { GameAction } from '../../reducers/gameReducer';
 import { GoldDisplay } from '../ui/GoldDisplay';
 import { ConversationOverlay } from '../Reward/ConversationOverlay';
 import { RewardOptionCard } from '../Reward/RewardOption';
-import { MenuButton } from '../Reward/MenuButton';
+import { MenuButton } from '../ui/MenuButton';
 import { RewardCelebrationModal, type RewardResult } from '../Reward/RewardCelebrationModal';
 import { getRelationshipProgress, relXpToNextLevel } from '../../utils/xp';
 import { useRewardMenuKeys } from '../../hooks/useKeyboardShortcuts';
@@ -428,7 +428,6 @@ export function RewardScreen({ gameState, dispatch, shopItems }: RewardScreenPro
           conversations={pendingConversation}
           opponentName={lastDefeatedOpponent?.name ?? ''}
           heroName={player.name}
-          opponentSpriteUrl={lastDefeatedOpponent?.avatar}
           onComplete={handleConversationComplete}
           onFail={pendingFail ? handleConversationFail : undefined}
         />

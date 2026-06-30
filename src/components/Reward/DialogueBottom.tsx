@@ -1,83 +1,30 @@
 import { getContrastColor } from '../../utils/color';
-import { ClickMiniGame } from './ClickMiniGame';
-import { WordsCatcherGame } from './WordsCatcherGame';
-import { MultiChoicePrompt } from './MultiChoicePrompt';
 
-export type DialogueMode = 'dialogue' | 'cinematic' | 'minigame' | 'words-catcher' | 'multichoice';
+export type DialogueMode = 'dialogue' | 'cinematic';
 
 export interface DialogueBottomProps {
   mode: DialogueMode;
-  current: { role: string; content: string; sprites: { url: string }[] };
-  currentContent: string;
+  content: string;
   advance: () => void;
   advanceLabel: string;
   speaker: string | null;
   isHero: boolean;
   isConversationVideo: boolean | undefined;
   backgroundColor: string;
-  onFail: (() => void) | undefined;
-  handleFillChange: (fill: number) => void;
-  minigameClickRef: React.MutableRefObject<(() => void) | null>;
-  catcherMoveLeftRef: React.MutableRefObject<(() => void) | null>;
-  catcherMoveRightRef: React.MutableRefObject<(() => void) | null>;
-  multiChoiceSelectRef: React.MutableRefObject<((index: number) => void) | null>;
   heroName: string;
 }
 
 export function DialogueBottom({
   mode,
-  current,
-  currentContent,
+  content,
   advance,
   advanceLabel,
   speaker,
   isHero,
   isConversationVideo,
   backgroundColor,
-  onFail,
-  handleFillChange,
-  minigameClickRef,
-  catcherMoveLeftRef,
-  catcherMoveRightRef,
-  multiChoiceSelectRef,
   heroName,
 }: DialogueBottomProps) {
-  if (mode === 'minigame') {
-    return (
-      <ClickMiniGame
-        description={current.content.match(/\(click-game:([^)]*)\)/)?.[1] ?? ''}
-        onWin={advance}
-        onLose={onFail ?? advance}
-        registerClick={fn => { minigameClickRef.current = fn; }}
-        onFillChange={handleFillChange}
-      />
-    );
-  }
-
-  if (mode === 'words-catcher') {
-    return (
-      <WordsCatcherGame
-        description={current.content.match(/\(words-catcher:([^)]*)\)/)?.[1] ?? ''}
-        onWin={advance}
-        onLose={onFail ?? advance}
-        onMoveLeft={fn => { catcherMoveLeftRef.current = fn; }}
-        onMoveRight={fn => { catcherMoveRightRef.current = fn; }}
-        onLevelChange={handleFillChange}
-      />
-    );
-  }
-
-  if (mode === 'multichoice') {
-    return (
-      <MultiChoicePrompt
-        key={currentContent}
-        content={currentContent}
-        onAdvance={advance}
-        registerSelectByIndex={fn => { multiChoiceSelectRef.current = fn; }}
-      />
-    );
-  }
-
   if (mode === 'dialogue') {
     return (
       <div className="relative shrink-0 pb-1 px-4 flex flex-col items-start mx-auto w-full">
@@ -98,7 +45,7 @@ export function DialogueBottom({
                 textShadow: isConversationVideo ? '-1px 0 black, 0 1px black, 1px 0 black, 0 -1px black' : null
               }}
             >
-              {current.content.replaceAll('{{PLAYER}}', heroName)}
+              {content.replaceAll('{{PLAYER}}', heroName)}
             </p>
             <div className="flex justify-end">
               <button onClick={advance} className="text-xs text-text-faint hover:text-text-muted transition-colors">
