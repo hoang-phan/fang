@@ -2,10 +2,10 @@ import { useCallback, useRef } from 'react';
 import type { Conversation } from '../../types';
 import { useConversationAdvance } from '../../hooks/useConversationAdvance';
 import { useConversationKeys } from '../../hooks/useKeyboardShortcuts';
-import { detectMode } from '../MiniGame/miniGameMode';
+import { detectMode } from '../MiniGameCenter/miniGameMode';
 import { Background, type BackgroundHandle } from './Background';
 import { Sprites } from './Sprites';
-import { MiniGameCenter } from '../MiniGame/MiniGameCenter';
+import { MiniGameCenter } from '../MiniGameCenter';
 import { DialogueBottom } from './DialogueBottom';
 
 interface ConversationOverlayProps {

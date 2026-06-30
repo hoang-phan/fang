@@ -1,6 +1,6 @@
 import type { OpponentCinematic } from '../../types';
 import { Button } from '../ui/Button';
-import { ConversationOverlay } from './ConversationOverlay';
+import { ConversationOverlay } from '../ConversationOverlay';
 
 interface CinematicsModalProps {
   cinematic: OpponentCinematic | null;
